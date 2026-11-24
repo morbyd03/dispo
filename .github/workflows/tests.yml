@@ -37,6 +37,10 @@ jobs:
       - name: Verifier Docker Compose
         run: docker compose config --quiet
 
+      - name: Simuler un umask restrictif
+        run: |
+          chmod -R go-rwx app
+
       - name: Construire Dispo
         run: docker compose build
 
