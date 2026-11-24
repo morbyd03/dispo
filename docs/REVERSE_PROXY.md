@@ -132,3 +132,24 @@ Lorsqu'un reverse proxy fonctionne dans un conteneur,
 
 Les exemples Nginx et Caddy ci-dessus concernent donc
 des services installés directement sur l'hôte.
+
+### Validation de la variante Traefik
+
+La variante Docker Compose a ete testee le 24 novembre 2026
+avec Traefik 3.0 et Let's Encrypt.
+
+Les verifications suivantes ont reussi :
+
+- Routage HTTPS vers Dispo.
+- Obtention automatique du certificat TLS.
+- Validation du certificat par curl.
+- Acces HTTP/2 avec un statut 200.
+- Absence de publication directe du port applicatif.
+- Presence de l'attribut Secure sur le cookie CSRF.
+
+La redirection HTTP vers HTTPS doit etre configuree
+separement dans Traefik si elle est souhaitee.
+Sans route HTTP, Traefik peut retourner un statut 404.
+
+Le reseau partage avec le reverse proxy doit etre
+reserve a des conteneurs de confiance.
