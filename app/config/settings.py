@@ -218,6 +218,8 @@ SERVER_EMAIL = os.environ.get(
 )
 
 # Personnalisation de l'application
+DISPO_PREPRODUCTION = env_bool("DISPO_PREPRODUCTION", False)
+
 DISPO_NAME = os.environ.get("DISPO_NAME", "Dispo")
 DISPO_CENTRE = os.environ.get("DISPO_CENTRE", "Centre de secours")
 
