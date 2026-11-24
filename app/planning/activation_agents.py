@@ -22,6 +22,7 @@ def envoyer_activation_agent(request, agent):
 
     message = (
         f"Bonjour {agent.first_name or agent.username},\n\n"
+        f"Votre identifiant de connexion : {agent.username}\n\n"
         f"Votre compte {settings.DISPO_NAME} a été créé.\n\n"
         "Pour définir votre mot de passe, cliquez sur ce lien :\n"
         f"{lien}\n\n"
@@ -55,6 +56,7 @@ def envoyer_reinitialisation_agent(request, agent):
 
     message = (
         f"Bonjour {agent.first_name or agent.username},\n\n"
+        f"Votre identifiant de connexion : {agent.username}\n\n"
         f"Votre administrateur {settings.DISPO_NAME} vous invite à définir "
         "un nouveau mot de passe.\n\n"
         "Cliquez sur le lien suivant :\n"
