@@ -43,3 +43,6 @@ compose.override.yaml
 *~
 .DS_Store
 Thumbs.db
+
+# Verrou de maintenance
+/.dispo-maintenance.lock

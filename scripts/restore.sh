@@ -1,6 +1,7 @@
 #!/bin/sh
 
 set -eu
+umask 077
 
 cd "$(dirname "$0")/.."
 
@@ -16,8 +17,50 @@ if [ ! -f "$FICHIER" ]; then
     exit 1
 fi
 
+. ./scripts/_backup_common.sh
+
+TRAVAIL=$(mktemp -d)
+ARRET=0
+
+nettoyer() {
+    CODE=$?
+
+    trap - EXIT
+    set +e
+
+    rm -rf "$TRAVAIL"
+
+    if [ "$ARRET" = "1" ]; then
+        echo "Tentative de redemarrage apres interruption..."
+
+        if ! docker compose up -d web; then
+            echo "ATTENTION : redemarrage manuel necessaire." >&2
+        fi
+    fi
+
+    exit "$CODE"
+}
+
+trap nettoyer EXIT
+trap 'exit 130' INT
+trap 'exit 143' TERM
+trap 'exit 129' HUP
+
+echo "Verification de la sauvegarde..."
+
+cp "$FICHIER" "$TRAVAIL/restore.sqlite3"
+
+python3 scripts/_sqlite_maintenance.py \
+    validate "$TRAVAIL/restore.sqlite3"
+
+if ! docker compose ps --status running --services | grep -qx web; then
+    echo "Dispo doit etre demarre avant la restauration."
+    exit 1
+fi
+
 echo "ATTENTION : la base actuelle sera remplacee."
 echo "Sauvegarde selectionnee : $FICHIER"
+
 printf "Saisir RESTAURER pour confirmer : "
 read -r confirmation
 
@@ -26,68 +69,26 @@ if [ "$confirmation" != "RESTAURER" ]; then
     exit 1
 fi
 
-echo "Sauvegarde preventive..."
-./scripts/backup.sh
-
 echo "Arret de Dispo..."
+
+ARRET=1
 docker compose stop web
+
+echo "Sauvegarde preventive..."
+
+sauvegarder offline
 
 echo "Restauration de la base..."
 
 docker compose run --rm -T --no-deps \
     --entrypoint python web \
-    -c '
-import sqlite3
-import os
-import sys
-from pathlib import Path
-
-temporaire = Path("/data/.restore.sqlite3")
-destination = Path("/data/db.sqlite3")
-
-try:
-    temporaire.write_bytes(sys.stdin.buffer.read())
-    temporaire.chmod(0o600)
-
-    connexion = sqlite3.connect(
-        "file:/data/.restore.sqlite3?mode=ro",
-        uri=True,
-    )
-
-    try:
-        resultat = connexion.execute(
-            "PRAGMA integrity_check"
-        ).fetchone()[0]
-
-        if resultat != "ok":
-            raise RuntimeError("Sauvegarde invalide")
-
-        tables = {
-            ligne[0]
-            for ligne in connexion.execute(
-                "SELECT name FROM sqlite_master WHERE type = ?",
-                ("table",),
-            )
-        }
-
-        if not {"django_migrations", "auth_user", "planning_disponibilite"} <= tables:
-            raise RuntimeError("Ce fichier ne semble pas etre une base Dispo")
-
-    finally:
-        connexion.close()
-
-    os.replace(temporaire, destination)
-
-    for suffixe in ("-wal", "-shm", "-journal"):
-        Path(str(destination) + suffixe).unlink(missing_ok=True)
-
-finally:
-    temporaire.unlink(missing_ok=True)
-
-print("Base restauree.")
-' < "$FICHIER"
+    -c "$(cat scripts/_sqlite_maintenance.py)" restore \
+    < "$TRAVAIL/restore.sqlite3"
 
 echo "Redemarrage de Dispo..."
-docker compose up -d
+
+docker compose up -d web
+
+ARRET=0
 
 echo "Restauration terminee. Verifier les journaux."
