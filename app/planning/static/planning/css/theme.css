@@ -95,16 +95,59 @@
 
 /* Bandeau de preproduction */
 .dispo-preproduction-banner {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    z-index: 3000;
+
     box-sizing: border-box;
-    width: 100%;
-    flex-shrink: 0;
-    padding: 10px 16px;
-    background-color: #c2410c;
+    height: 40px;
+
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 12px;
+
+    padding: 6px 12px;
+
+    background: linear-gradient(90deg, #9a3412, #c2410c);
     color: #ffffff;
+
     text-align: center;
-    font-size: 0.85rem;
+    font-size: 0.8rem;
+    font-weight: 600;
+
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+}
+
+.dispo-preproduction-banner__badge {
+    display: inline-block;
+    padding: 3px 10px;
+    border-radius: 20px;
+    border: 1px solid rgba(255, 255, 255, 0.4);
+    background: rgba(255, 255, 255, 0.12);
     font-weight: 700;
-    line-height: 1.4;
     letter-spacing: 0.04em;
-    overflow-wrap: anywhere;
+    white-space: nowrap;
+}
+
+.dispo-preproduction-banner__text {
+    opacity: 0.95;
+}
+
+body.dispo-with-preproduction {
+    box-sizing: border-box;
+    padding-top: 40px;
+}
+
+@media (max-width: 480px) {
+    .dispo-preproduction-banner {
+        gap: 8px;
+        font-size: 0.7rem;
+    }
+
+    .dispo-preproduction-banner__badge {
+        padding: 3px 6px;
+    }
 }
