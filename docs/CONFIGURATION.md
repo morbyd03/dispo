@@ -99,3 +99,26 @@ Les fichiers de personnalisation sont exclus du dépôt Git.
 ## Fuseau horaire
 
 Le fuseau horaire par défaut est Europe/Paris.
+
+## Environnement de préproduction
+
+La variable suivante permet d'afficher un bandeau orange
+sur les pages de l'application :
+
+    DISPO_PREPRODUCTION=True
+
+Par défaut, cette option est désactivée.
+
+Le bandeau permet de distinguer visuellement une installation
+de test d'une installation de production.
+
+Cette option est uniquement visuelle. Elle ne protège pas
+l'accès à l'application et n'empêche pas les envois d'e-mails.
+
+Pour une préproduction, il est recommandé d'utiliser :
+
+- Une base de données indépendante.
+- Des comptes et des données fictifs.
+- Une clé secrète distincte.
+- Une protection supplémentaire du reverse proxy.
+- Le backend email console de Django.

@@ -228,7 +228,8 @@
 
     {% block extra_head %}{% endblock %}
 </head>
-<body>
+<body{% if dispo_preproduction %} class="dispo-with-preproduction"{% endif %}>
+    {% include "planning/_bandeau_preproduction.html" %}
 
     <div class="dispo-mobile-bar">
         <button type="button"
