@@ -31,5 +31,27 @@ Les mentions originales de copyright sont conservées.
 Les licences fournies avec FullCalendar sont disponibles
 dans app/planning/static/planning/vendor/fullcalendar/.
 
-L'inventaire complet des licences des dépendances
-embarquées dans le bundle reste à vérifier.
+### Composants FullCalendar
+
+| Composant | Version | Licence |
+|---|---|---|
+| FullCalendar Standard Bundle | 6.1.19 | MIT |
+| @fullcalendar/core | 6.1.19 | MIT |
+| @fullcalendar/daygrid | 6.1.19 | MIT |
+| @fullcalendar/timegrid | 6.1.19 | MIT |
+| @fullcalendar/list | 6.1.19 | MIT |
+| @fullcalendar/interaction | 6.1.19 | MIT |
+| @fullcalendar/multimonth | 6.1.19 | MIT |
+| Preact | ~10.12.1 (dependance declaree) | MIT |
+
+Preact est une dependance de FullCalendar Core.
+
+Site officiel : https://preactjs.com/
+
+Les textes des licences sont conserves dans le repertoire
+des composants JavaScript.
+
+La version exacte de Preact integree au bundle doit
+encore etre confirmee.
+
+Ces composants restent soumis a leurs licences originales.
