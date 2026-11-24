@@ -1,0 +1,67 @@
+
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    {% include "planning/_theme_head.html" %}
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Supprimer une disponibilité</title>
+
+    <style>
+        body {
+            background: var(--bg);
+            color: var(--text);
+        }
+
+        input:not([type="checkbox"]):not([type="radio"]),
+        select,
+        textarea {
+            background: var(--input-bg);
+            color: var(--text);
+            border: 1px solid var(--border);
+        }
+
+        input[type="checkbox"],
+        input[type="radio"] {
+            accent-color: var(--primary);
+        }
+
+        a {
+            color: var(--primary-text);
+        }
+
+        button {
+            background: var(--surface-alt);
+            color: var(--text);
+            border: 1px solid var(--border);
+        }
+
+        button[type="submit"] {
+            background: var(--primary);
+            color: white;
+        }
+    </style>
+
+</head>
+<body>
+    <h1>Supprimer une disponibilité</h1>
+
+    <p>Voulez-vous vraiment supprimer cette disponibilité ?</p>
+
+    <p>
+        Du {{ disponibilite.debut|date:"d/m/Y H:i" }}
+        au {{ disponibilite.fin|date:"d/m/Y H:i" }}
+    </p>
+
+    <form method="post">
+        {% csrf_token %}
+        <button type="submit">Confirmer la suppression</button>
+    </form>
+
+    <p>
+        <a href="{% url 'mes_disponibilites' %}">
+            Annuler
+        </a>
+    </p>
+</body>
+</html>

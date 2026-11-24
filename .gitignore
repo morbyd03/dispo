@@ -1,0 +1,45 @@
+# Configuration privée et secrets
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+
+# Bases de données
+*.sqlite3
+*.sqlite3-*
+*.db
+/data/
+/data-*/
+
+# Sauvegardes
+/backups/
+/sauvegardes/
+*.bak*
+*.backup
+*.log
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Fichiers Django générés
+staticfiles/
+media/
+
+# Configuration Docker locale
+docker-compose.override.yml
+compose.override.yaml
+
+# Éditeurs et système
+.vscode/
+.idea/
+*.swp
+*~
+.DS_Store
+Thumbs.db

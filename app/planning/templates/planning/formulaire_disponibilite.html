@@ -1,0 +1,71 @@
+
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    {% include "planning/_theme_head.html" %}
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Ajouter une disponibilité</title>
+
+    <style>
+        body {
+            background: var(--bg);
+            color: var(--text);
+        }
+
+        input:not([type="checkbox"]):not([type="radio"]),
+        select,
+        textarea {
+            background: var(--input-bg);
+            color: var(--text);
+            border: 1px solid var(--border);
+        }
+
+        input[type="checkbox"],
+        input[type="radio"] {
+            accent-color: var(--primary);
+        }
+
+        a {
+            color: var(--primary-text);
+        }
+
+        button {
+            background: var(--surface-alt);
+            color: var(--text);
+            border: 1px solid var(--border);
+        }
+
+        button[type="submit"] {
+            background: var(--primary);
+            color: white;
+        }
+    </style>
+
+</head>
+<body>
+    <h1>
+        {% if modification %}
+            Modifier une disponibilité
+        {% else %}
+            Ajouter une disponibilité
+        {% endif %}
+    </h1>
+
+    <form method="post">
+        {% csrf_token %}
+
+        {{ formulaire.as_p }}
+
+        <button type="submit">
+            Enregistrer
+        </button>
+    </form>
+
+    <p>
+        <a href="{% url 'mes_disponibilites' %}">
+            Retour à mes disponibilités
+        </a>
+    </p>
+</body>
+</html>

@@ -1,0 +1,186 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    {% include "planning/_theme_head.html" %}
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Connexion — {{ dispo_name }}</title>
+
+    <style>
+        * { box-sizing: border-box; }
+
+        body {
+            margin: 0;
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 24px;
+            background: var(--bg);
+            font-family: system-ui, sans-serif;
+            color: var(--text);
+        }
+
+        .login-card {
+            width: 100%;
+            max-width: 420px;
+            padding: 36px;
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 18px;
+            box-shadow: var(--shadow);
+        }
+
+        .logo {
+            display: block;
+            width: 145px;
+            height: 145px;
+            object-fit: contain;
+            margin: 0 auto 22px;
+        }
+
+        h1 {
+            margin: 0;
+            text-align: center;
+            font-size: 25px;
+            line-height: 1.25;
+        }
+
+        .subtitle {
+            margin: 12px 0 30px;
+            text-align: center;
+            color: var(--text-muted);
+            font-size: 14px;
+        }
+
+        .field { margin-bottom: 20px; }
+
+        label {
+            display: block;
+            margin-bottom: 8px;
+            font-size: 14px;
+            font-weight: 600;
+        }
+
+        input[type="text"],
+        input[type="password"] {
+            display: block;
+            width: 100%;
+            padding: 13px 14px;
+            border: 1px solid var(--border);
+            border-radius: 9px;
+            background: var(--surface);
+            color: var(--text);
+            font: inherit;
+        }
+
+        input:focus {
+            outline: 2px solid var(--primary-text);
+            border-color: var(--primary);
+        }
+
+        .submit {
+            width: 100%;
+            padding: 14px;
+            border: 0;
+            border-radius: 9px;
+            background: var(--primary);
+            color: white;
+            font: inherit;
+            font-weight: 600;
+            cursor: pointer;
+        }
+
+        .submit:hover { background: var(--primary-hover); }
+
+        .error {
+            padding: 12px;
+            margin-bottom: 20px;
+            border-radius: 9px;
+            background: var(--danger-bg);
+            color: var(--danger);
+            font-size: 14px;
+        }
+
+        @media (max-width: 480px) {
+            .login-card { padding: 26px 22px; }
+            .logo { width: 120px; height: 120px; }
+        }
+
+        input:not([type="checkbox"]):not([type="radio"]):not([type="hidden"]):not([type="submit"]) {
+            background: var(--input-bg);
+            color: var(--text);
+            border-color: var(--border);
+        }
+
+        input:focus-visible {
+            outline: 2px solid var(--primary-text);
+            outline-offset: 2px;
+        }
+
+        input::placeholder {
+            color: var(--text-muted);
+        }
+
+        button[type="submit"]:hover,
+        .submit:hover {
+            background: var(--primary-hover);
+        }
+
+        a {
+            color: var(--primary-text);
+        }
+
+        a:hover {
+            text-decoration: underline;
+        }
+
+    </style>
+</head>
+
+<body>
+    <main class="login-card">
+        <img class="logo"
+             src="{% static dispo_logo %}"
+             alt="Logo du centre">
+
+        <h1>{{ dispo_name }}</h1>
+        <p class="dispo-centre">{{ dispo_centre }}</p>
+        <p class="subtitle">Connexion des agents</p>
+
+        {% if form.errors %}
+            <div class="error" role="alert">
+                Identifiant ou mot de passe incorrect.
+            </div>
+        {% endif %}
+
+        <form method="post">
+            {% csrf_token %}
+
+            <div class="field">
+                <label for="id_username">Identifiant</label>
+                {{ form.username }}
+            </div>
+
+            <div class="field">
+                <label for="id_password">Mot de passe</label>
+                {{ form.password }}
+            </div>
+
+            <input type="hidden" name="next" value="{{ next }}">
+
+            <button class="submit" type="submit">
+                Se connecter
+            </button>
+
+            <p style="text-align: center; margin: 20px 0 0; font-size: 14px;">
+                <a href="{% url 'password_reset' %}"
+                   style="color: var(--primary-text); text-decoration: none;">
+                    Mot de passe oublié ?
+                </a>
+            </p>
+        </form>
+    </main>
+</body>
+</html>

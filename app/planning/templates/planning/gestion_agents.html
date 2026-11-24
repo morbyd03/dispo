@@ -1,0 +1,155 @@
+{% extends "planning/base.html" %}
+
+{% block title %}Gestion des agents · {{ dispo_name }}{% endblock %}
+
+{% block extra_head %}
+<style>
+        * { box-sizing: border-box; }
+        body {
+            margin: 0;
+            background: var(--bg);
+            color: var(--text);
+            font-family: system-ui, sans-serif;
+        }
+        header {
+            background: var(--surface);
+            border-bottom: 1px solid var(--border);
+            padding: 20px 30px;
+        }
+        .barre {
+            max-width: 1200px;
+            margin: auto;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 16px;
+        }
+        a { color: var(--primary-text); text-decoration: none; }
+        main {
+            max-width: 1200px;
+            margin: 35px auto;
+            padding: 0 24px;
+        }
+        h1 { margin-bottom: 8px; }
+        .description { color: var(--text-muted); }
+        .carte {
+            margin-top: 28px;
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 14px;
+            overflow-x: auto;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            text-align: left;
+        }
+        th, td {
+            padding: 15px;
+            border-bottom: 1px solid var(--border);
+        }
+        th { background: var(--surface-alt); }
+        .inactif { color: var(--danger); }
+        .vide { padding: 24px; }
+
+    .dispo-content input:not([type="checkbox"]):not([type="radio"]),
+    .dispo-content select,
+    .dispo-content textarea {
+        background: var(--input-bg);
+        color: var(--text);
+        border-color: var(--border);
+    }
+
+    .dispo-content input:focus,
+    .dispo-content select:focus,
+    .dispo-content textarea:focus {
+        outline: 2px solid var(--primary-text);
+        outline-offset: 2px;
+    }
+
+    .dispo-content input[type="checkbox"],
+    .dispo-content input[type="radio"] {
+        accent-color: var(--primary);
+    }
+
+</style>
+{% endblock %}
+
+{% block content %}
+<main>
+        <h1>Gestion des agents</h1>
+        <p class="description">
+            Liste des agents et de leurs compétences.
+        </p>
+
+        <div class="carte">
+
+        <div style="margin: 20px 0;">
+            <a href="{% url 'ajouter_agent' %}"
+               style="display: inline-block;
+                      background: var(--primary);
+                      color: white;
+                      padding: 12px 20px;
+                      border-radius: 7px;
+                      text-decoration: none;
+                      font-weight: bold;">
+                + Ajouter un agent
+            </a>
+        </div>
+
+<table>
+                <thead>
+                    <tr>
+                        <th>Nom</th>
+                        <th>Prénom</th>
+                        <th>Identifiant</th>
+                        <th>Compétences</th>
+                        <th>Statut</th>
+<th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for agent in agents %}
+                    <tr>
+                        <td>{{ agent.last_name|default:"—" }}</td>
+                        <td>{{ agent.first_name|default:"—" }}</td>
+                        <td>{{ agent.username }}</td>
+                        <td>
+                            {% for attribution in agent.competences_agent.all %}
+                                {{ attribution.competence.nom }}{% if not forloop.last %}, {% endif %}
+                            {% empty %}
+                                —
+                            {% endfor %}
+                        </td>
+                        <td>
+                            {% if agent.is_active %}
+                                Actif
+                            {% else %}
+                                <span class="inactif">Inactif</span>
+                            {% endif %}
+                        </td>
+
+<td>
+    {% if agent.modification_autorisee %}
+        <a href="{% url 'modifier_agent' agent.pk %}"
+           style="color: var(--danger); font-weight: bold;">
+            Modifier
+        </a>
+    {% else %}
+        <span style="color: var(--text-muted);">Compte protégé</span>
+    {% endif %}
+</td>
+
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="6" class="vide">
+                            Aucun agent enregistré.
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </main>
+{% endblock %}
