@@ -13,6 +13,23 @@ app/requirements.txt.
 Les versions exactes installées sont répertoriées
 dans app/requirements.lock.
 
+| Composant | Version | Licence |
+|---|---|---|
+| Django | 5.2.19 | BSD-3-Clause |
+| Gunicorn | 23.0.0 | MIT |
+| WhiteNoise | 6.12.0 | MIT |
+| asgiref | 3.13.0 | BSD-3-Clause |
+| packaging | 26.4 | Apache-2.0 OR BSD-2-Clause |
+| sqlparse | 0.6.1 | BSD-3-Clause |
+
+Les textes des licences de ces dépendances sont fournis
+avec leurs distributions respectives.
+
+Django fournit également des ressources statiques pour
+son interface d'administration, accompagnées des mentions
+de licence de sa distribution.
+
+
 ## FullCalendar
 
 Version intégrée : 6.1.19.
@@ -42,7 +59,7 @@ dans app/planning/static/planning/vendor/fullcalendar/.
 | @fullcalendar/list | 6.1.19 | MIT |
 | @fullcalendar/interaction | 6.1.19 | MIT |
 | @fullcalendar/multimonth | 6.1.19 | MIT |
-| Preact | ~10.12.1 (dependance declaree) | MIT |
+| Preact | 10.12.1 (version verrouillée) | MIT |
 
 Preact est une dependance de FullCalendar Core.
 
@@ -51,7 +68,13 @@ Site officiel : https://preactjs.com/
 Les textes des licences sont conserves dans le repertoire
 des composants JavaScript.
 
-La version exacte de Preact integree au bundle doit
-encore etre confirmee.
+Le fichier pnpm-lock.yaml du dépôt officiel FullCalendar
+au tag v6.1.19 indique la version Preact 10.12.1.
+
+Source :
+https://github.com/fullcalendar/fullcalendar/blob/v6.1.19/pnpm-lock.yaml
+
+La version verrouillée est ainsi identifiée, sans vérification
+indépendante de la composition du bundle distribué.
 
 Ces composants restent soumis a leurs licences originales.
