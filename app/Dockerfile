@@ -15,6 +15,10 @@ RUN pip install --no-cache-dir -r requirements.lock
 
 COPY . .
 
+# Garantir la lecture des sources, meme lorsque
+# le depot a ete clone avec un umask restrictif.
+RUN chmod -R a+rX /app
+
 RUN mkdir -p /app/staticfiles /data \
     && chown dispo:dispo /app/staticfiles /data \
     && chmod 755 /app/entrypoint.sh
