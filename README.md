@@ -56,6 +56,9 @@ Consulter le [guide d'installation](docs/INSTALLATION.md).
 
 ## Documentation
 
+- [Vision et objectifs du projet](docs/VISION.md)
+- [Feuille de route](ROADMAP.md)
+
 - [Installation](docs/INSTALLATION.md)
 - [Configuration](docs/CONFIGURATION.md)
 - [Reverse proxies et HTTPS](docs/REVERSE_PROXY.md)
