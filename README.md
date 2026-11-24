@@ -26,9 +26,12 @@ de couverture opérationnelle.
 - Gestion des droits administrateurs.
 - Activation des comptes par e-mail.
 - Réinitialisation des mots de passe.
+- Rappel de l'identifiant de connexion dans les e-mails.
 - Interface adaptée aux ordinateurs et smartphones.
 - Thèmes clair et sombre.
 - Personnalisation du nom, du centre et du logo.
+- Bandeau configurable de préproduction.
+- Sauvegarde et restauration sécurisées des données.
 
 ## Technologies
 
@@ -63,6 +66,8 @@ Consulter le [guide d'installation](docs/INSTALLATION.md).
 - [Licence AGPL-3.0](LICENSE)
 
 ## Tests
+
+La version 0.1.0 dispose de 51 tests automatisés.
 
 Depuis le répertoire du projet :
 
