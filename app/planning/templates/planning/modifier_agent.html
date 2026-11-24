@@ -1,0 +1,381 @@
+{% extends "planning/base.html" %}
+
+{% block title %}Modifier un agent · {{ dispo_name }}{% endblock %}
+
+{% block extra_head %}
+<style>
+        * { box-sizing: border-box; }
+
+        body {
+            margin: 0;
+            background: var(--bg);
+            color: var(--text);
+            font-family: Arial, sans-serif;
+        }
+
+        header {
+            background: var(--surface);
+            padding: 20px 30px;
+            border-bottom: 1px solid var(--border);
+        }
+
+        header a {
+            color: var(--text);
+            text-decoration: none;
+            font-weight: bold;
+        }
+
+        main {
+            max-width: 650px;
+            margin: 40px auto;
+            padding: 0 20px;
+        }
+
+        .carte {
+            background: var(--surface);
+            padding: 30px;
+            border-radius: 12px;
+            box-shadow: var(--shadow);
+        }
+
+        h1 { margin-top: 0; }
+
+        label {
+            display: block;
+            font-weight: bold;
+            margin: 18px 0 8px;
+        }
+
+        input {
+            width: 100%;
+            padding: 12px;
+            border: 1px solid var(--border);
+            border-radius: 7px;
+            font-size: 16px;
+        }
+
+        .erreur {
+            color: var(--danger);
+            margin-top: 6px;
+        }
+
+        .actions {
+            display: flex;
+            gap: 12px;
+            margin-top: 28px;
+            align-items: center;
+        }
+
+        button, .annuler {
+            padding: 12px 20px;
+            border-radius: 7px;
+            font-size: 15px;
+            text-decoration: none;
+        }
+
+        button {
+            background: var(--primary);
+            color: white;
+            border: none;
+            cursor: pointer;
+        }
+
+        .annuler {
+            background: var(--surface-hover);
+            color: var(--text);
+        }
+
+    .carte input[type="checkbox"] {
+        width: 18px;
+        height: 18px;
+        margin: 0;
+        accent-color: var(--primary);
+        cursor: pointer;
+        flex-shrink: 0;
+    }
+
+    .section-agent {
+        margin-top: 28px;
+        padding-top: 20px;
+        border-top: 1px solid var(--border);
+    }
+
+    .section-agent h2 {
+        margin: 0 0 16px;
+        font-size: 20px;
+    }
+
+    .liste-competences {
+        background: var(--bg);
+        border-radius: 8px;
+        padding: 16px;
+    }
+
+    .liste-competences label,
+    .ligne-coche {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        margin: 0;
+        padding: 10px 0;
+        font-weight: normal;
+        cursor: pointer;
+    }
+
+    .aide-droits {
+        color: var(--text-muted);
+        font-size: 13px;
+        margin: 4px 0 12px 30px;
+    }
+
+    .bloc-admin {
+        background: var(--primary-soft);
+        border-radius: 8px;
+        padding: 12px 16px;
+        margin-top: 12px;
+    }
+
+
+    .dispo-content input:not([type="checkbox"]):not([type="radio"]),
+    .dispo-content select,
+    .dispo-content textarea {
+        background: var(--input-bg);
+        color: var(--text);
+        border-color: var(--border);
+    }
+
+    .dispo-content input:focus,
+    .dispo-content select:focus,
+    .dispo-content textarea:focus {
+        outline: 2px solid var(--primary-text);
+        outline-offset: 2px;
+    }
+
+    .dispo-content input[type="checkbox"],
+    .dispo-content input[type="radio"] {
+        accent-color: var(--primary);
+    }
+
+
+    .competence-item {
+        padding: 6px 0;
+        border-bottom: 1px solid var(--border);
+    }
+
+    .competence-item:last-child {
+        border-bottom: none;
+    }
+
+    .dates-competence {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 12px;
+        margin: 0 0 12px 30px;
+    }
+
+    .dates-competence[hidden] {
+        display: none;
+    }
+
+    .dates-competence label {
+        font-size: 12px;
+        color: var(--text-muted);
+        padding: 4px 0;
+        cursor: default;
+    }
+
+    .dates-competence input {
+        width: 100%;
+        min-width: 0;
+        padding: 9px;
+        font-size: 14px;
+    }
+
+    @media (max-width: 600px) {
+        .dates-competence {
+            grid-template-columns: 1fr;
+            gap: 6px;
+        }
+    }
+
+</style>
+<style>
+    body { margin: 0; padding: 0; }
+</style>
+{% endblock %}
+
+{% block content %}
+<main>
+        <div class="carte">
+
+            {% if messages %}
+                {% for message in messages %}
+                    <div style="
+                        padding: 14px;
+                        margin-bottom: 20px;
+                        border-radius: 7px;
+                        {% if message.tags == 'success' %}
+                            background: var(--success-bg);
+                            color: var(--success);
+                        {% else %}
+                            background: var(--danger-bg);
+                            color: var(--danger);
+                        {% endif %}
+                    ">
+                        {{ message }}
+                    </div>
+                {% endfor %}
+            {% endif %}
+
+            <h1>Modifier l'agent {{ agent.username }}</h1>
+
+            <form method="post">
+                {% csrf_token %}
+
+
+                <h2>Informations personnelles</h2>
+
+                {% for champ in formulaire %}
+                    {% if champ.name == "last_name" or champ.name == "first_name" or champ.name == "username" or champ.name == "email" %}
+                        {{ champ.label_tag }}
+                        {{ champ }}
+
+                        {% for erreur in champ.errors %}
+                            <div class="erreur">{{ erreur }}</div>
+                        {% endfor %}
+                    {% endif %}
+                {% endfor %}
+
+                <section class="section-agent">
+                    <h2>Compétences</h2>
+
+                    <p>Cochez les compétences détenues par cet agent. Les dates de validité sont facultatives.</p>
+
+                    <div class="liste-competences">
+                        {% for ligne in formulaire.lignes_competences %}
+                            <div class="competence-item">
+                                {{ ligne.choix }}
+
+                                <div class="dates-competence">
+                                    <div>
+                                        {{ ligne.debut.label_tag }}
+                                        {{ ligne.debut }}
+
+                                        {% for erreur in ligne.debut.errors %}
+                                            <div class="erreur">{{ erreur }}</div>
+                                        {% endfor %}
+                                    </div>
+
+                                    <div>
+                                        {{ ligne.fin.label_tag }}
+                                        {{ ligne.fin }}
+
+                                        {% for erreur in ligne.fin.errors %}
+                                            <div class="erreur">{{ erreur }}</div>
+                                        {% endfor %}
+                                    </div>
+                                </div>
+                            </div>
+                        {% empty %}
+                            <p>Aucune compétence active.</p>
+                        {% endfor %}
+                    </div>
+
+                    {{ formulaire.competences.errors }}
+                </section>
+
+                <section class="section-agent">
+                    <h2>Droits et accès</h2>
+
+                    <label class="ligne-coche">
+                        {{ formulaire.is_active }}
+                        Compte actif
+                    </label>
+
+                    {{ formulaire.is_active.errors }}
+
+                    {% if request.user.is_superuser and formulaire.administrateur_dispo %}
+                        <div class="bloc-admin">
+                            <label class="ligne-coche">
+                                {{ formulaire.administrateur_dispo }}
+                                Administrateur Dispo
+                            </label>
+
+                            <p class="aide-droits">
+                                Autorise la gestion des agents
+                                et de leurs compétences,
+                                sans accès à l'administration Django.
+                            </p>
+
+                            {{ formulaire.administrateur_dispo.errors }}
+                        </div>
+                    {% endif %}
+                </section>
+
+                {% for erreur in formulaire.non_field_errors %}
+                    <div class="erreur">{{ erreur }}</div>
+                {% endfor %}
+
+                <div class="actions">
+                    <button type="submit">Enregistrer les modifications</button>
+                    <a class="annuler" href="{% url 'liste_agents' %}">
+                        Annuler
+                    </a>
+                </div>
+            </form>
+
+            <hr style="margin: 30px 0; border: 0;
+                       border-top: 1px solid var(--border);">
+
+            <h2>Sécurité du compte</h2>
+
+            <p>
+                Envoyer un lien par e-mail pour permettre
+                à cet agent de définir un nouveau mot de passe.
+            </p>
+
+            {% if agent.is_active and agent.email %}
+
+                <form method="post"
+                      action="{% url 'reinitialiser_agent' agent.pk %}"
+                      onsubmit="return confirm('Confirmer l’envoi de l’e-mail de réinitialisation ?');">
+
+                    {% csrf_token %}
+
+                    <button type="submit"
+                            style="background: var(--primary);">
+                        Envoyer un e-mail de réinitialisation
+                    </button>
+                </form>
+
+            {% else %}
+                <p style="color: var(--danger);">
+                    Le compte doit être actif et posséder
+                    une adresse e-mail.
+                </p>
+            {% endif %}
+
+        </div>
+    </main>
+{% endblock %}
+
+
+{% block extra_scripts %}
+<script>
+    document.querySelectorAll(".competence-item").forEach(function (item) {
+        const coche = item.querySelector('input[type="checkbox"]');
+        const dates = item.querySelector(".dates-competence");
+
+        function actualiserDates() {
+            dates.hidden = !coche.checked;
+
+            dates.querySelectorAll("input").forEach(function (champ) {
+                champ.disabled = !coche.checked;
+            });
+        }
+
+        coche.addEventListener("change", actualiserDates);
+        actualiserDates();
+    });
+</script>
+{% endblock %}

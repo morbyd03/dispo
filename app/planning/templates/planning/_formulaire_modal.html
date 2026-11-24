@@ -1,0 +1,31 @@
+<form method="post" id="formulaire-disponibilite">
+    {% csrf_token %}
+
+    {{ formulaire.non_field_errors }}
+
+    <div class="modal-form-grid">
+
+        <div class="modal-field">
+            <label>Date et heure de début</label>
+            {{ formulaire.debut }}
+            {{ formulaire.debut.errors }}
+        </div>
+
+        <div class="modal-field">
+            <label>Date et heure de fin</label>
+            {{ formulaire.fin }}
+            {{ formulaire.fin.errors }}
+        </div>
+
+    </div>
+
+    <div class="modal-actions">
+        <button type="button" id="annuler-disponibilite">
+            Annuler
+        </button>
+
+        <button type="submit" class="btn-primary">
+            Enregistrer
+        </button>
+    </div>
+</form>

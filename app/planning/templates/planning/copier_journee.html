@@ -1,0 +1,385 @@
+
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    {% include "planning/_theme_head.html" %}
+    <meta charset="UTF-8">
+    <meta name="viewport"
+          content="width=device-width, initial-scale=1">
+    <title>Copier une journée</title>
+
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 720px;
+            margin: 30px auto;
+            padding: 15px;
+        }
+
+        .calendrier {
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            padding: 15px;
+            margin: 20px 0;
+        }
+
+        .navigation {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+        }
+
+        .grille {
+            display: grid;
+            grid-template-columns: repeat(7, 1fr);
+            gap: 5px;
+        }
+
+        .jour, .entete {
+            text-align: center;
+            padding: 10px 0;
+        }
+
+        .jour {
+            cursor: pointer;
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            background: var(--surface);
+        }
+
+        .jour.selectionne {
+            background: var(--primary);
+            color: white;
+        }
+
+        .jour:focus-visible {
+            outline: 3px solid var(--warning);
+        }
+
+        .actions {
+            display: flex;
+            gap: 10px;
+            margin-top: 20px;
+        }
+
+        .actions button {
+            padding: 10px 15px;
+            cursor: pointer;
+        }
+
+        #dates-choisies {
+            overflow-wrap: anywhere;
+        }
+    </style>
+
+    <style>
+        body {
+            background: var(--bg);
+            color: var(--text);
+        }
+
+        input:not([type="checkbox"]):not([type="radio"]),
+        select,
+        textarea {
+            background: var(--input-bg);
+            color: var(--text);
+            border: 1px solid var(--border);
+        }
+
+        input[type="checkbox"],
+        input[type="radio"] {
+            accent-color: var(--primary);
+        }
+
+        a {
+            color: var(--primary-text);
+        }
+
+        button {
+            background: var(--surface-alt);
+            color: var(--text);
+            border: 1px solid var(--border);
+        }
+
+        button[type="submit"] {
+            background: var(--primary);
+            color: white;
+        }
+    </style>
+
+</head>
+
+<body>
+    <h1>Copier une journée</h1>
+
+    <p>
+        Sélectionnez une date source, puis cliquez
+        sur toutes les dates où copier ses disponibilités.
+    </p>
+
+    <form method="post">
+        {% csrf_token %}
+
+        {{ formulaire.non_field_errors }}
+
+        <p>
+            <label for="{{ formulaire.date_source.id_for_label }}">
+                Date source :
+            </label>
+            {{ formulaire.date_source }}
+            {{ formulaire.date_source.errors }}
+        </p>
+
+        {{ formulaire.dates_destination }}
+        {{ formulaire.dates_destination.errors }}
+
+        <div class="calendrier">
+            <div class="navigation">
+                <button type="button" id="precedent">
+                    &lt;
+                </button>
+
+                <strong id="mois-affiche"></strong>
+
+                <button type="button" id="suivant">
+                    &gt;
+                </button>
+            </div>
+
+            <div class="grille" id="grille"></div>
+        </div>
+
+        <p>
+            <strong>Dates sélectionnées :</strong>
+            <span id="dates-choisies">Aucune</span>
+        </p>
+
+        <div class="actions">
+            <button type="submit" id="valider" disabled>
+                Copier les disponibilités
+            </button>
+
+            <button type="button" id="effacer">
+                Effacer la sélection
+            </button>
+        </div>
+    </form>
+
+    <p>
+        <a href="{% url 'mes_disponibilites' %}">
+            Retour à mes disponibilités
+        </a>
+    </p>
+
+    <script>
+        const champDates = document.getElementById(
+            "id_dates_destination"
+        );
+
+        const champSource = document.getElementById(
+            "id_date_source"
+        );
+
+        const grille = document.getElementById("grille");
+        const moisAffiche = document.getElementById("mois-affiche");
+        const datesChoisies = document.getElementById("dates-choisies");
+        const boutonValider = document.getElementById("valider");
+
+        const selection = new Set(
+            champDates.value.split(",").filter(Boolean)
+        );
+
+        const maintenant = new Date();
+        let annee = maintenant.getFullYear();
+        let mois = maintenant.getMonth();
+
+        function formaterDate(annee, mois, jour) {
+            return (
+                annee + "-" +
+                String(mois + 1).padStart(2, "0") + "-" +
+                String(jour).padStart(2, "0")
+            );
+        }
+
+        function actualiserSelection() {
+            const dates = [...selection].sort();
+
+            champDates.value = dates.join(",");
+            datesChoisies.textContent = dates.length
+                ? dates.join(", ")
+                : "Aucune";
+
+            boutonValider.disabled =
+                dates.length === 0 || !champSource.value;
+        }
+
+        function afficherCalendrier() {
+            grille.replaceChildren();
+
+            moisAffiche.textContent = new Intl.DateTimeFormat(
+                "fr-FR",
+                { month: "long", year: "numeric" }
+            ).format(new Date(annee, mois, 1));
+
+            ["L", "M", "M", "J", "V", "S", "D"].forEach(
+                nom => {
+                    const entete = document.createElement("div");
+                    entete.className = "entete";
+                    entete.textContent = nom;
+                    grille.appendChild(entete);
+                }
+            );
+
+            const premierJour = new Date(
+                annee, mois, 1
+            ).getDay();
+
+            const decalage = (premierJour + 6) % 7;
+
+            for (let i = 0; i < decalage; i++) {
+                grille.appendChild(
+                    document.createElement("div")
+                );
+            }
+
+            const nombreJours = new Date(
+                annee, mois + 1, 0
+            ).getDate();
+
+            for (let jour = 1; jour <= nombreJours; jour++) {
+                const date = formaterDate(
+                    annee, mois, jour
+                );
+
+                const bouton = document.createElement("button");
+                bouton.type = "button";
+                bouton.className = "jour";
+                bouton.textContent = jour;
+                bouton.setAttribute("aria-label", date);
+
+                if (selection.has(date)) {
+                    bouton.classList.add("selectionne");
+                }
+
+                bouton.setAttribute(
+                    "aria-pressed",
+                    String(selection.has(date))
+                );
+
+                bouton.addEventListener("click", () => {
+                    if (selection.has(date)) {
+                        selection.delete(date);
+                    } else {
+                        selection.add(date);
+                    }
+
+                    afficherCalendrier();
+                    actualiserSelection();
+                });
+
+                grille.appendChild(bouton);
+            }
+        }
+
+        document.getElementById("precedent")
+            .addEventListener("click", () => {
+                mois--;
+
+                if (mois < 0) {
+                    mois = 11;
+                    annee--;
+                }
+
+                afficherCalendrier();
+            });
+
+        document.getElementById("suivant")
+            .addEventListener("click", () => {
+                mois++;
+
+                if (mois > 11) {
+                    mois = 0;
+                    annee++;
+                }
+
+                afficherCalendrier();
+            });
+
+        document.getElementById("effacer")
+            .addEventListener("click", () => {
+                selection.clear();
+                afficherCalendrier();
+                actualiserSelection();
+            });
+
+        champSource.addEventListener(
+            "change",
+            actualiserSelection
+        );
+
+        afficherCalendrier();
+        actualiserSelection();
+    </script>
+
+<script>
+(function () {
+    const formulaire = document.querySelector("form");
+
+    if (!formulaire || window.parent === window) return;
+
+    formulaire.addEventListener("submit", async function (event) {
+        event.preventDefault();
+
+        const bouton = formulaire.querySelector(
+            'button[type="submit"]'
+        );
+
+        if (bouton) bouton.disabled = true;
+
+        try {
+            const reponse = await fetch(
+                formulaire.action || window.location.href,
+                {
+                    method: "POST",
+                    body: new FormData(formulaire),
+                    headers: {
+                        "X-Requested-With": "XMLHttpRequest"
+                    }
+                }
+            );
+
+            const type = reponse.headers.get("content-type") || "";
+
+            if (type.includes("application/json")) {
+                const resultat = await reponse.json();
+
+                if (!reponse.ok || !resultat.success) {
+                    throw new Error(resultat.message || "Erreur de copie.");
+                }
+
+                window.parent.postMessage(
+                    "copie-journee-terminee",
+                    window.location.origin
+                );
+
+                return;
+            }
+
+            // Formulaire invalide : réafficher les erreurs Django.
+            const html = await reponse.text();
+
+            document.open();
+            document.write(html);
+            document.close();
+
+        } catch (erreur) {
+            alert("Erreur : " + erreur.message);
+            if (bouton) bouton.disabled = false;
+        }
+    });
+})();
+</script>
+
+</body>
+</html>

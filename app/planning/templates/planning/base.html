@@ -1,0 +1,392 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+
+    <title>{% block title %}{{ dispo_name }}{% endblock %}</title>
+
+    {% include "planning/_theme_head.html" %}
+
+    <style>
+        :root {
+            font-family: system-ui, sans-serif;
+            color: var(--text);
+            background: var(--bg);
+        }
+
+        * { box-sizing: border-box; }
+        body { margin: 0; }
+
+        .dispo-layout {
+            display: flex;
+            min-height: 100vh;
+        }
+
+        .dispo-sidebar {
+            width: 240px;
+            flex-shrink: 0;
+            background: var(--sidebar-bg);
+            color: white;
+            padding: 22px 15px;
+            position: sticky;
+            top: 0;
+            height: 100vh;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .dispo-logo {
+            text-align: center;
+            padding: 10px 0 25px;
+        }
+
+        .dispo-logo img {
+            width: 85px;
+            border-radius: 10px;
+        }
+
+        .dispo-logo h2 {
+            margin: 10px 0 0;
+        }
+
+        .dispo-nav-label {
+            color: var(--sidebar-muted);
+            font-size: 11px;
+            font-weight: bold;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin: 24px 10px 10px;
+        }
+
+        .dispo-nav a {
+            display: block;
+            padding: 12px;
+            margin: 4px 0;
+            color: var(--sidebar-text);
+            text-decoration: none;
+            border-radius: 8px;
+            font-size: 14px;
+        }
+
+        .dispo-nav a:hover,
+        .dispo-nav a.active {
+            background: var(--primary);
+            color: white;
+        }
+
+        .dispo-account {
+            margin-top: auto;
+            padding: 20px 10px 0;
+            border-top: 1px solid var(--sidebar-border);
+        }
+
+        .dispo-account small {
+            color: var(--sidebar-muted);
+        }
+
+        .dispo-logout {
+            width: 100%;
+            margin-top: 15px;
+            padding: 10px;
+            background: transparent;
+            color: white;
+            border: 1px solid var(--sidebar-muted);
+            border-radius: 8px;
+            cursor: pointer;
+        }
+
+        .dispo-theme-row {
+            display: flex;
+            justify-content: flex-start;
+            margin-bottom: 8px;
+        }
+
+        .dispo-theme-toggle {
+            position: relative;
+            display: block;
+            width: 64px;
+            height: 32px;
+            padding: 0;
+            border: 0;
+            border-radius: 999px;
+            background: #3f4148;
+            cursor: pointer;
+            transition: background 0.25s ease;
+            flex-shrink: 0;
+        }
+
+        :root[data-theme="dark"] .dispo-theme-toggle {
+            background: var(--primary);
+        }
+
+        .dispo-theme-toggle:focus-visible {
+            outline: 2px solid white;
+            outline-offset: 4px;
+        }
+
+        .dispo-theme-thumb {
+            position: absolute;
+            top: 3px;
+            left: 3px;
+            width: 26px;
+            height: 26px;
+            border-radius: 50%;
+            background: white;
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.25);
+            transition: transform 0.25s ease;
+        }
+
+        :root[data-theme="dark"] .dispo-theme-thumb {
+            transform: translateX(32px);
+        }
+
+        .dispo-theme-toggle svg {
+            position: absolute;
+            top: 8px;
+            width: 16px;
+            height: 16px;
+            z-index: 1;
+            pointer-events: none;
+            color: white;
+            transition: color 0.25s ease;
+        }
+
+        .dispo-theme-sun {
+            left: 8px;
+        }
+
+        .dispo-theme-moon {
+            right: 8px;
+        }
+
+        :root:not([data-theme="dark"]) .dispo-theme-sun {
+            color: #555555;
+        }
+
+        :root[data-theme="dark"] .dispo-theme-moon {
+            color: var(--primary);
+        }
+
+        @media (prefers-reduced-motion: reduce) {
+            .dispo-theme-toggle,
+            .dispo-theme-thumb,
+            .dispo-theme-toggle svg {
+                transition: none;
+            }
+        }
+
+        .dispo-content {
+            flex: 1;
+            min-width: 0;
+        }
+
+        .dispo-mobile-bar {
+            display: none;
+        }
+
+        @media (max-width: 800px) {
+            .dispo-layout {
+                display: block;
+            }
+
+            .dispo-mobile-bar {
+                display: flex;
+                align-items: center;
+                gap: 15px;
+                background: var(--sidebar-bg);
+                color: white;
+                padding: 15px;
+            }
+
+            .dispo-menu-toggle {
+                background: transparent;
+                color: white;
+                border: 0;
+                font-size: 24px;
+                cursor: pointer;
+            }
+
+            .dispo-sidebar {
+                display: none;
+                position: fixed;
+                top: 60px;
+                bottom: 0;
+                left: 0;
+                height: calc(100dvh - 60px);
+                z-index: 2000;
+                box-shadow: 5px 0 20px #0003;
+            }
+
+            .dispo-sidebar.ouverte {
+                display: flex;
+            }
+        }
+    </style>
+
+    {% block extra_head %}{% endblock %}
+</head>
+<body>
+
+    <div class="dispo-mobile-bar">
+        <button type="button"
+                class="dispo-menu-toggle"
+                aria-label="Menu de navigation"
+                aria-controls="dispo-sidebar"
+                aria-expanded="false"
+                onclick="basculerMenu(this)">
+            ☰
+        </button>
+        <strong>{{ dispo_name }}</strong>
+    </div>
+
+    <div class="dispo-layout">
+
+        <aside class="dispo-sidebar" id="dispo-sidebar">
+
+
+            <div class="dispo-theme-row">
+                <button type="button"
+                        id="dispo-theme-toggle"
+                        class="dispo-theme-toggle"
+                        role="switch"
+                        aria-checked="false"
+                        aria-label="Thème sombre"
+                        title="Changer de thème"
+                        onclick="basculerTheme()">
+
+                    <span class="dispo-theme-thumb"></span>
+
+                    <svg class="dispo-theme-sun"
+                         viewBox="0 0 24 24"
+                         fill="none"
+                         stroke="currentColor"
+                         stroke-width="2"
+                         stroke-linecap="round"
+                         aria-hidden="true">
+                        <circle cx="12" cy="12" r="4"/>
+                        <path d="M12 2v2 M12 20v2
+                                 M2 12h2 M20 12h2
+                                 M4.93 4.93l1.42 1.42
+                                 M17.65 17.65l1.42 1.42
+                                 M4.93 19.07l1.42-1.42
+                                 M17.65 6.35l1.42-1.42"/>
+                    </svg>
+
+                    <svg class="dispo-theme-moon"
+                         viewBox="0 0 24 24"
+                         fill="none"
+                         stroke="currentColor"
+                         stroke-width="2"
+                         stroke-linecap="round"
+                         stroke-linejoin="round"
+                         aria-hidden="true">
+                        <path d="M20.9 13.35A9 9 0 0 1
+                                 10.65 3.1 9 9 0 1 0
+                                 20.9 13.35Z"/>
+                    </svg>
+                </button>
+            </div>
+
+            <div class="dispo-logo">
+                <img src="{% static dispo_logo %}"
+                     alt="Logo du centre">
+                <h2>{{ dispo_name }}</h2>
+                <div class="dispo-centre">{{ dispo_centre }}</div>
+            </div>
+
+            <nav class="dispo-nav">
+                <div class="dispo-nav-label">Mon espace</div>
+
+                <a href="{% url 'mes_disponibilites' %}"
+                   class="{% if request.resolver_match.url_name == 'mes_disponibilites' %}active{% endif %}">
+                    Mes disponibilités
+                </a>
+
+                <a href="{% url 'planning_hebdomadaire' %}"
+                   class="{% if request.resolver_match.url_name == 'planning_hebdomadaire' %}active{% endif %}">
+                    Planning de l'équipe
+                </a>
+
+                <a href="{% url 'mon_profil' %}"
+                   class="{% if request.resolver_match.url_name == 'mon_profil' %}active{% endif %}">
+                    Mon profil
+                </a>
+
+                {% if perms.auth.view_user %}
+                    <div class="dispo-nav-label">
+                        Administration
+                    </div>
+
+                    <a href="{% url 'liste_agents' %}"
+                       class="{% if request.resolver_match.url_name == 'liste_agents' %}active{% endif %}">
+                        Gestion des agents
+                    </a>
+                {% endif %}
+            </nav>
+
+            <div class="dispo-account">
+                <strong>
+                    {{ request.user.get_full_name|default:request.user.username }}
+                </strong>
+
+                <br>
+                <small>{{ request.user.username }}</small>
+
+
+
+                <form method="post" action="{% url 'logout' %}">
+                    {% csrf_token %}
+                    <button class="dispo-logout" type="submit">
+                        Déconnexion
+                    </button>
+                </form>
+            </div>
+
+        </aside>
+
+        <div class="dispo-content">
+            {% block content %}{% endblock %}
+        </div>
+
+    </div>
+
+    <script>
+        function actualiserBoutonTheme() {
+            const sombre = document.documentElement.dataset.theme === "dark";
+            const bouton = document.getElementById("dispo-theme-toggle");
+
+            bouton.setAttribute("aria-checked", String(sombre));
+            bouton.title = sombre
+                ? "Activer le thème clair"
+                : "Activer le thème sombre";
+        }
+
+        function basculerTheme() {
+            const theme = document.documentElement.dataset.theme === "dark"
+                ? "light" : "dark";
+
+            document.documentElement.dataset.theme = theme;
+
+            try {
+                localStorage.setItem("dispo-theme", theme);
+            } catch (e) {}
+
+            actualiserBoutonTheme();
+        }
+
+        actualiserBoutonTheme();
+
+        function basculerMenu(bouton) {
+            const ouvert = document.getElementById("dispo-sidebar")
+                .classList.toggle("ouverte");
+
+            bouton.setAttribute("aria-expanded", String(ouvert));
+        }
+    </script>
+
+    {% block extra_scripts %}{% endblock %}
+</body>
+</html>

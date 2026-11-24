@@ -1,0 +1,25 @@
+services:
+  web:
+    build:
+      context: ./app
+
+    restart: unless-stopped
+
+    env_file:
+      - .env
+
+    ports:
+      - "127.0.0.1:${DISPO_PORT:-8000}:8000"
+
+    volumes:
+      - dispo_data:/data
+      - ./branding:/branding:ro
+
+    security_opt:
+      - no-new-privileges:true
+
+    cap_drop:
+      - ALL
+
+volumes:
+  dispo_data:

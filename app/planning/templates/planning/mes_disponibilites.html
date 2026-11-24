@@ -1,0 +1,743 @@
+{% extends "planning/base.html" %}
+{% load static %}
+
+{% block title %}Mes disponibilités · {{ dispo_name }}{% endblock %}
+
+{% block extra_head %}
+<script src="{% static 'planning/vendor/fullcalendar/index.global.min.js' %}"></script>
+    <script src="{% static 'planning/vendor/fullcalendar/fr.global.min.js' %}"></script>
+
+    <style>
+        :root {
+            font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+            color: var(--text);
+            background: var(--bg);
+        }
+
+        * { box-sizing: border-box; }
+
+        body { margin: 0; }
+
+        a { text-decoration: none; }
+
+        .topbar {
+            background: var(--surface);
+            border-bottom: 1px solid var(--border);
+        }
+
+        .topbar-inner {
+            max-width: 1500px;
+            margin: auto;
+            padding: 18px 30px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 20px;
+        }
+
+        .brand {
+            font-size: 19px;
+            font-weight: 750;
+            color: var(--text);
+        }
+
+        .account {
+            display: flex;
+            align-items: center;
+            gap: 18px;
+            color: var(--text-muted);
+            font-size: 14px;
+        }
+
+        .logout {
+            background: transparent;
+            border: 1px solid var(--border);
+            border-radius: 9px;
+            padding: 9px 13px;
+            color: var(--text-muted);
+            cursor: pointer;
+            font: inherit;
+        }
+
+        .container {
+            max-width: 1500px;
+            margin: 0 auto;
+            padding: 35px 30px 60px;
+        }
+
+        .page-heading {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-end;
+            gap: 20px;
+            flex-wrap: wrap;
+            margin-bottom: 28px;
+        }
+
+        .eyebrow {
+            color: var(--text-muted);
+            font-size: 13px;
+            font-weight: 650;
+            letter-spacing: .06em;
+            text-transform: uppercase;
+            margin: 0 0 8px;
+        }
+
+        h1 {
+            margin: 0;
+            font-size: clamp(27px, 3vw, 35px);
+            letter-spacing: -.035em;
+        }
+
+        .subtitle {
+            color: var(--text-muted);
+            margin: 10px 0 0;
+            font-size: 15px;
+        }
+
+        .actions {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            padding: 12px 17px;
+            border-radius: 10px;
+            font-size: 14px;
+            font-weight: 650;
+            transition: background .15s;
+        }
+
+        .btn-primary {
+            background: var(--primary);
+            color: #fff;
+        }
+
+        .btn-primary:hover { background: var(--primary-hover); }
+
+        .btn-secondary {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            color: var(--text);
+        }
+
+        .btn-secondary:hover { background: var(--surface-alt); }
+
+        .calendar-card {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 16px;
+            padding: 25px;
+            box-shadow: var(--shadow);
+        }
+
+        .calendar-heading {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            flex-wrap: wrap;
+            gap: 12px;
+            margin-bottom: 23px;
+        }
+
+        .calendar-heading h2 {
+            margin: 0;
+            font-size: 19px;
+            letter-spacing: -.02em;
+        }
+
+        .hint {
+            font-size: 13px;
+            color: var(--text-muted);
+        }
+
+        #calendrier { width: 100%; }
+
+        .fc {
+            --fc-border-color: var(--border);
+            --fc-today-bg-color: var(--primary-soft);
+            --fc-button-bg-color: var(--surface);
+            --fc-button-border-color: var(--border);
+            --fc-button-text-color: var(--text);
+            --fc-button-hover-bg-color: var(--surface-hover);
+            --fc-button-hover-border-color: var(--border);
+            --fc-button-active-bg-color: var(--primary-soft);
+            --fc-button-active-border-color: var(--primary);
+            --fc-event-bg-color: var(--success-bg);
+            --fc-event-border-color: var(--success);
+            --fc-event-text-color: var(--success);
+            font-size: 13px;
+        }
+
+        .fc .fc-toolbar-title {
+            font-size: 20px;
+            font-weight: 750;
+            letter-spacing: -.025em;
+        }
+
+        .fc .fc-button {
+            border-radius: 8px;
+            padding: 8px 12px;
+            font-weight: 600;
+            box-shadow: none !important;
+        }
+
+        .fc .fc-button-primary:focus {
+            box-shadow: 0 0 0 3px var(--primary-soft) !important;
+        }
+
+        .fc .fc-col-header-cell {
+            background: var(--surface-alt);
+            padding: 10px 0;
+        }
+
+        .fc .fc-col-header-cell-cushion,
+        .fc .fc-daygrid-day-number {
+            color: var(--text);
+            text-decoration: none;
+        }
+
+        .fc .fc-daygrid-day-number { padding: 9px; }
+
+        .fc .fc-event {
+            cursor: pointer;
+            border-radius: 5px;
+            padding: 2px 4px;
+            font-weight: 550;
+        }
+
+        .fc .fc-daygrid-event-dot {
+            border-color: var(--primary);
+        }
+
+        .fc .fc-timegrid-slot,
+        .fc .fc-daygrid-day-frame {
+            cursor: pointer;
+        }
+
+        .fc .fc-timegrid-event {
+            overflow: hidden;
+        }
+
+        .fc .fc-daygrid-more-link {
+            color: var(--primary);
+            font-weight: 650;
+        }
+
+        .footer-note {
+            margin-top: 18px;
+            font-size: 12px;
+            color: var(--text-muted);
+            text-align: center;
+        }
+
+        @media (max-width: 760px) {
+            .topbar-inner { padding: 15px; }
+            .container { padding: 22px 12px 35px; }
+            .calendar-card { padding: 14px 9px; }
+            .actions { width: 100%; }
+            .actions .btn { flex: 1; }
+            .fc .fc-toolbar {
+                flex-wrap: wrap;
+                gap: 12px;
+            }
+            .fc .fc-toolbar-title { font-size: 17px; }
+            .fc .fc-button { padding: 7px 9px; }
+            .account { gap: 8px; }
+        }
+    </style>
+
+<style>
+.modal-overlay[hidden] { display: none; }
+.modal-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 9999;
+    background: var(--overlay);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+}
+.modal-dialog {
+    width: min(100%, 520px);
+    max-height: 90vh;
+    overflow-y: auto;
+    background: var(--surface);
+    border-radius: 16px;
+    padding: 24px;
+    box-shadow: 0 24px 70px rgba(0,0,0,.25);
+}
+.modal-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 20px;
+}
+.modal-header h2 { margin: 0; font-size: 22px; }
+#fermer-modal {
+    border: 0;
+    background: transparent;
+    font-size: 30px;
+    cursor: pointer;
+}
+.modal-form-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+}
+.modal-field label {
+    display: block;
+    margin-bottom: 6px;
+    font-weight: 600;
+}
+.modal-field input {
+    width: 100%;
+    box-sizing: border-box;
+    padding: 10px;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+}
+.modal-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 12px;
+    margin-top: 24px;
+}
+.modal-actions button {
+    padding: 10px 16px;
+    border-radius: 8px;
+    cursor: pointer;
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<main class="container">
+        <div class="page-heading">
+            <div>
+                <p class="eyebrow">Espace personnel</p>
+                <h1>Mes disponibilités</h1>
+                <p class="subtitle">
+                    Consultez et organisez vos créneaux de disponibilité.
+                </p>
+            </div>
+
+            <div class="actions">
+
+                <button class="btn btn-secondary" type="button"
+                        id="ouvrir-copie-journee">
+                    Copier une journée
+                </button>
+                <a id="btn-ajouter-dispo" class="btn btn-primary" href="{% url 'ajouter_disponibilite' %}">
+                    + Ajouter une disponibilité
+                </a>
+            </div>
+        </div>
+
+        <section class="calendar-card">
+            <div class="calendar-heading">
+                <h2>Mon calendrier</h2>
+                <span class="hint">
+                    Cliquez sur un créneau pour ajouter une disponibilité.
+                </span>
+            </div>
+
+            <div id="calendrier"></div>
+        </section>
+
+        <p class="footer-note">
+            Cliquez sur une disponibilité existante pour la modifier.
+        </p>
+    </main>
+
+    {{ evenements|json_script:"evenements-calendrier" }}
+
+    <script>
+        document.addEventListener("DOMContentLoaded", function () {
+            const element = document.getElementById("calendrier");
+            const evenements = JSON.parse(
+                document.getElementById("evenements-calendrier").textContent
+            );
+
+            const overlay = document.getElementById("modal-disponibilite");
+          const contenu = document.getElementById("modal-contenu");
+
+          function fermerModal() {
+              overlay.hidden = true;
+              contenu.innerHTML = "";
+          }
+
+          async function ouvrirModal(url, titre = "Ajouter une disponibilité") {
+              document.getElementById("modal-titre").textContent = titre;
+              contenu.textContent = "Chargement...";
+              overlay.hidden = false;
+
+              try {
+                  const reponse = await fetch(url, {
+                      headers: {"X-Requested-With": "XMLHttpRequest"}
+                  });
+
+                  if (!reponse.ok) {
+                      throw new Error("Impossible de charger le formulaire.");
+                  }
+
+                  contenu.innerHTML = await reponse.text();
+                  const formulaire = contenu.querySelector("form");
+                  if (formulaire) {
+                    formulaire.action = url;
+
+                    if (titre === "Modifier une disponibilité") {
+                        const bouton = document.createElement("button");
+                        bouton.type = "button";
+                        bouton.id = "supprimer-disponibilite";
+                        bouton.textContent = "Supprimer";
+                        bouton.style.background = "#dc2626";
+                        bouton.style.color = "white";
+                        bouton.style.border = "none";
+                        bouton.style.marginRight = "auto";
+
+                        formulaire.querySelector(".modal-actions")
+                            .prepend(bouton);
+                    }
+                }
+              } catch (erreur) {
+                  contenu.textContent = erreur.message;
+              }
+          }
+
+          document.getElementById("btn-ajouter-dispo")
+              .addEventListener("click", function (event) {
+                  event.preventDefault();
+                  ouvrirModal(this.href);
+              });
+
+          document.getElementById("fermer-modal")
+              .addEventListener("click", fermerModal);
+
+          overlay.addEventListener("click", function (event) {
+              if (event.target === overlay) fermerModal();
+          });
+
+          document.addEventListener("keydown", function (event) {
+              if (event.key === "Escape" && !overlay.hidden) {
+                  fermerModal();
+              }
+          });
+
+          contenu.addEventListener("click", function (event) {
+              if (event.target.id === "annuler-disponibilite") {
+                  fermerModal();
+              }
+          });
+
+          contenu.addEventListener("submit", async function (event) {
+              const formulaire = event.target;
+
+              if (formulaire.id !== "formulaire-disponibilite") return;
+
+              event.preventDefault();
+
+              const bouton = formulaire.querySelector('[type="submit"]');
+              bouton.disabled = true;
+              bouton.textContent = "Enregistrement...";
+
+              try {
+                  const reponse = await fetch(formulaire.action || window.location.href, {
+                      method: "POST",
+                      headers: {
+                          "X-Requested-With": "XMLHttpRequest"
+                      },
+                      body: new FormData(formulaire)
+                  });
+
+                  const type = reponse.headers.get("content-type") || "";
+
+                  if (reponse.ok && type.includes("application/json")) {
+                      const resultat = await reponse.json();
+
+                      if (resultat.success) {
+                          sauvegarderVueCalendrier();
+                        window.location.reload();
+                          return;
+                      }
+                  }
+
+                  if (reponse.status === 400) {
+                      contenu.innerHTML = await reponse.text();
+                      return;
+                  }
+
+                  throw new Error("Erreur lors de l'enregistrement.");
+              } catch (erreur) {
+                  alert(erreur.message);
+                  bouton.disabled = false;
+                  bouton.textContent = "Enregistrer";
+              }
+          });
+
+          contenu.addEventListener("click", async function (event) {
+              if (event.target.id !== "supprimer-disponibilite") return;
+
+              if (!confirm("Supprimer définitivement cette disponibilité ?")) {
+                  return;
+              }
+
+              const formulaire = contenu.querySelector("form");
+              const urlModification = new URL(formulaire.action);
+              const urlSuppression = urlModification.pathname.replace(
+                  "/modifier/",
+                  "/supprimer/"
+              );
+
+              const bouton = event.target;
+              bouton.disabled = true;
+
+              try {
+                  const reponse = await fetch(urlSuppression, {
+                      method: "POST",
+                      headers: {
+                          "X-Requested-With": "XMLHttpRequest"
+                      },
+                      body: new FormData(formulaire)
+                  });
+
+                  if (!reponse.ok) {
+                      throw new Error("Suppression impossible.");
+                  }
+
+                  const resultat = await reponse.json();
+
+                  if (!resultat.success) {
+                      throw new Error("Suppression impossible.");
+                  }
+
+                  sauvegarderVueCalendrier();
+                        window.location.reload();
+              } catch (erreur) {
+                  alert(erreur.message);
+                  bouton.disabled = false;
+              }
+          });
+
+          function ouvrirAjout(dateStr, allDay) {
+                const date = dateStr.substring(0, 10);
+                const heure = allDay ? "08:00" : dateStr.substring(11, 16);
+
+                const url = new URL(
+                    "{% url 'ajouter_disponibilite' %}",
+                    window.location.origin
+                );
+
+                url.searchParams.set("date", date);
+                url.searchParams.set("heure", heure);
+                ouvrirModal(url.toString());
+            }
+
+            function sauvegarderVueCalendrier() {
+              sessionStorage.setItem("calendrier_vue", calendrier.view.type);
+              sessionStorage.setItem("calendrier_date", calendrier.getDate().toISOString());
+          }
+
+          const calendrier = new FullCalendar.Calendar(element, {
+                locale: "fr",
+                initialView: new URLSearchParams(window.location.search).get("vue") === "mois"
+                    ? "dayGridMonth"
+                    : (sessionStorage.getItem("calendrier_vue") || "timeGridWeek"),
+                initialDate: new URLSearchParams(window.location.search).get("vue") === "mois"
+                    ? new Date()
+                    : (sessionStorage.getItem("calendrier_date") || undefined),
+                firstDay: 1,
+                allDaySlot: false,
+                nowIndicator: true,
+                selectable: true,
+                selectMirror: true,
+                slotDuration: "00:30:00",
+                slotMinTime: "00:00:00",
+                slotMaxTime: "24:00:00",
+                height: "auto",
+                dayMaxEvents: 3,
+                eventDisplay: "block",
+                displayEventEnd: false,
+
+                headerToolbar: {
+                    left: "prev,next today",
+                    center: "title",
+                    right: "timeGridDay,timeGridWeek,dayGridMonth"
+                },
+
+                buttonText: {
+                    today: "Aujourd'hui",
+                    day: "Jour",
+                    week: "Semaine",
+                    month: "Mois"
+                },
+
+                datesSet: function (info) {
+                   const debut = info.startStr.slice(0, 10);
+                   const fin = info.endStr.slice(0, 10);
+
+                   const url = new URL(
+                       "{% url 'couverture_ssuap_calendrier' %}",
+                       window.location.origin
+                   );
+                   url.searchParams.set("debut", debut);
+                   url.searchParams.set("fin", fin);
+
+                   fetch(url)
+                       .then(reponse => {
+                           if (!reponse.ok) {
+                               throw new Error("Erreur couverture SSUAP");
+                           }
+                           return reponse.json();
+                       })
+                       .then(donnees => {
+                           document.querySelectorAll(
+                               ".marqueur-ssuap"
+                           ).forEach(point => point.remove());
+
+                           document.querySelectorAll(
+                               ".fc-daygrid-day[data-date]"
+                           ).forEach(cellule => {
+                               const date = cellule.dataset.date;
+                               const etat = donnees.jours[date];
+
+                               if (!etat) return;
+
+                               const numero = cellule.querySelector(
+                                   ".fc-daygrid-day-number"
+                               );
+                               if (!numero) return;
+
+                               const point = document.createElement("span");
+                               point.className = "marqueur-ssuap";
+                               point.style.cssText =
+                                   "display:inline-block;" +
+                                   "width:9px;height:9px;" +
+                                   "border-radius:50%;" +
+                                   "margin-left:5px;" +
+                                   "background:" +
+                                   (etat === "rouge" ? "#dc2626" : "#16a34a");
+                               point.title = etat === "rouge"
+                                   ? "SSUAP : effectif insuffisant"
+                                   : "SSUAP : effectif suffisant";
+
+                               numero.appendChild(point);
+                           });
+                       })
+                       .catch(erreur => console.error(erreur));
+               },
+
+               events: evenements,
+
+                dateClick: function (info) {
+                    ouvrirAjout(info.dateStr, info.allDay);
+                },
+
+                select: function (info) {
+                    ouvrirAjout(info.startStr, info.allDay);
+                },
+
+                eventClick: function (info) {
+                    info.jsEvent.preventDefault();
+
+                    const urlModele = "{% url 'modifier_disponibilite' 0 %}";
+                    const url = urlModele.replace(
+                        "/0/",
+                        "/" + info.event.id + "/"
+                    );
+
+                    ouvrirModal(url, "Modifier une disponibilité");
+                }
+            });
+
+            calendrier.render();
+        });
+    </script>
+
+<div id="modal-disponibilite" class="modal-overlay" hidden>
+    <div class="modal-dialog" role="dialog"
+         aria-modal="true" aria-labelledby="modal-titre">
+        <div class="modal-header">
+            <h2 id="modal-titre">Ajouter une disponibilité</h2>
+            <button type="button" id="fermer-modal"
+                    aria-label="Fermer">×</button>
+        </div>
+        <div id="modal-contenu"></div>
+    </div>
+</div>
+
+
+<div id="modal-copie-journee" class="modal-overlay" hidden>
+    <div class="modal-dialog modal-copie" role="dialog"
+         aria-modal="true" aria-labelledby="titre-copie">
+        <div class="modal-header">
+            <h2 id="titre-copie">Copier une journée</h2>
+            <button type="button" id="fermer-copie"
+                    aria-label="Fermer">×</button>
+        </div>
+        <iframe id="iframe-copie-journee"
+                title="Copier une journée"
+                src="about:blank"></iframe>
+    </div>
+</div>
+
+<style>
+.modal-copie {
+    width: min(95%, 850px);
+    height: min(90vh, 850px);
+    display: flex;
+    flex-direction: column;
+}
+#iframe-copie-journee {
+    width: 100%;
+    flex: 1;
+    min-height: 0;
+    border: 0;
+    background: var(--surface);
+}
+</style>
+
+<script>
+document.addEventListener("DOMContentLoaded", function () {
+    const modal = document.getElementById("modal-copie-journee");
+    const iframe = document.getElementById("iframe-copie-journee");
+
+    function fermerCopie() {
+        modal.hidden = true;
+        iframe.src = "about:blank";
+    }
+
+    document.getElementById("ouvrir-copie-journee")
+        .addEventListener("click", function () {
+            iframe.src = "{% url 'copier_journee' %}";
+            modal.hidden = false;
+        });
+
+    document.getElementById("fermer-copie")
+        .addEventListener("click", fermerCopie);
+
+    modal.addEventListener("click", function (event) {
+        if (event.target === modal) fermerCopie();
+    });
+
+    document.addEventListener("keydown", function (event) {
+        if (event.key === "Escape" && !modal.hidden) fermerCopie();
+    });
+
+    window.addEventListener("message", function (event) {
+        if (event.origin !== window.location.origin) return;
+
+        if (event.data === "copie-journee-terminee") {
+            fermerCopie();
+            sauvegarderVueCalendrier();
+                        window.location.reload();
+        }
+    });
+});
+</script>
+{% endblock %}

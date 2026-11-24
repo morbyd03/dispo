@@ -1,0 +1,50 @@
+name: Tests Dispo
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  tests:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Recuperer les sources
+        uses: actions/checkout@v6
+        with:
+          persist-credentials: false
+
+      - name: Preparer la configuration
+        run: |
+          umask 077
+          cat > .env <<ENVEOF
+          DJANGO_SECRET_KEY=$(python3 -c 'import secrets; print(secrets.token_urlsafe(64))')
+          DISPO_DOMAIN=localhost
+          DISPO_PORT=18000
+          DJANGO_DEBUG=False
+          DJANGO_HTTPS=False
+          DJANGO_TRUST_PROXY=False
+          EMAIL_BACKEND=django.core.mail.backends.console.EmailBackend
+          DISPO_NAME=Dispo CI
+          DISPO_CENTRE=Centre de test
+          ENVEOF
+
+      - name: Verifier Docker Compose
+        run: docker compose config --quiet
+
+      - name: Construire Dispo
+        run: docker compose build
+
+      - name: Executer les tests
+        run: |
+          docker compose run --rm -T --no-deps web \
+            python manage.py test planning --verbosity 2
+
+      - name: Nettoyer
+        if: always()
+        run: docker compose down -v
