@@ -1,12 +1,15 @@
 from datetime import datetime, time, timedelta
 
 from django.db import transaction
+from django import forms
+from django.core.exceptions import ValidationError
 from django.utils import timezone
 
 from .models import Disponibilite
 
 
-def copier_journee(agent, date_source, dates_destination):
+@transaction.atomic
+def copier_journee(profil, date_source, dates_destination):
     """
     Remplace intégralement chaque journée cible par une copie
     des disponibilités de la journée source.
@@ -16,6 +19,11 @@ def copier_journee(agent, date_source, dates_destination):
     """
 
     fuseau = timezone.get_current_timezone()
+
+    def heure_locale(jour, heure):
+        return forms.DateTimeField().clean(
+            datetime.combine(jour, heure)
+        )
 
     def minuit(jour):
         return timezone.make_aware(
@@ -28,7 +36,7 @@ def copier_journee(agent, date_source, dates_destination):
 
     disponibilites = list(
         Disponibilite.objects.filter(
-            agent=agent,
+            profil=profil,
             debut__lt=fin_source,
             fin__gt=debut_source,
         ).order_by("debut")
@@ -50,6 +58,13 @@ def copier_journee(agent, date_source, dates_destination):
                 fin == fin_source,
             ))
 
+    if not portions:
+        return {
+            "creations": 0,
+            "doublons": 0,
+            "creneaux_source": 0,
+        }
+
     creations = 0
 
     with transaction.atomic():
@@ -67,7 +82,7 @@ def copier_journee(agent, date_source, dates_destination):
             # qui touchent la journée cible.
             existantes = list(
                 Disponibilite.objects.filter(
-                    agent=agent,
+                    profil=profil,
                     debut__lt=fin_destination,
                     fin__gt=debut_destination,
                 )
@@ -93,34 +108,28 @@ def copier_journee(agent, date_source, dates_destination):
                 for segment in (avant, apres):
                     if segment:
                         Disponibilite.objects.create(
-                            agent=agent,
+                            profil=profil,
                             debut=segment[0],
                             fin=segment[1],
                         )
 
             # Recréer exactement les portions de la source.
             for heure_debut, heure_fin, finit_a_minuit in portions:
-                nouveau_debut = timezone.make_aware(
-                    datetime.combine(destination, heure_debut),
-                    fuseau,
-                )
+                nouveau_debut = heure_locale(destination, heure_debut)
 
                 if finit_a_minuit:
                     nouvelle_fin = fin_destination
                 else:
-                    nouvelle_fin = timezone.make_aware(
-                        datetime.combine(destination, heure_fin),
-                        fuseau,
-                    )
+                    nouvelle_fin = heure_locale(destination, heure_fin)
 
                 if nouvelle_fin <= nouveau_debut:
-                    raise ValueError(
+                    raise ValidationError(
                         "La période copiée doit avoir "
                         "une durée positive."
                     )
 
                 Disponibilite.objects.create(
-                    agent=agent,
+                    profil=profil,
                     debut=nouveau_debut,
                     fin=nouvelle_fin,
                 )

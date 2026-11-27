@@ -3,17 +3,39 @@ from django.contrib.auth.decorators import login_required
 from django.shortcuts import render, redirect, get_object_or_404
 from django.http import JsonResponse
 from .forms import DisponibiliteForm, CopieJourneeForm
-from .models import Disponibilite
+from .models import Disponibilite, ProfilAgent
+from django.core.exceptions import PermissionDenied, ValidationError
 from datetime import date, datetime, time, timedelta
 from django.utils import timezone
 from django.contrib import messages
 from .copie import copier_journee
 
+def profil_operationnel(utilisateur):
+    if not utilisateur.is_active:
+        raise PermissionDenied("Compte inactif.")
+
+    profil = ProfilAgent.objects.filter(
+        utilisateur=utilisateur
+    ).first()
+
+    if profil is None:
+        raise PermissionDenied("Aucun profil agent associe.")
+
+    return profil
+
+
 @login_required
 def mes_disponibilites(request):
+    if not ProfilAgent.objects.filter(
+        utilisateur=request.user
+    ).exists():
+        return redirect("planning_hebdomadaire")
+
+    profil = profil_operationnel(request.user)
+
     disponibilites = list(
         Disponibilite.objects.filter(
-            agent=request.user
+            profil=profil
         ).order_by("debut")
     )
 
@@ -41,6 +63,7 @@ def mes_disponibilites(request):
 
 @login_required
 def ajouter_disponibilite(request):
+    profil = profil_operationnel(request.user)
     modal = request.headers.get("X-Requested-With") == "XMLHttpRequest"
 
     if request.method == "POST":
@@ -48,7 +71,7 @@ def ajouter_disponibilite(request):
 
         if formulaire.is_valid():
             disponibilite = formulaire.save(commit=False)
-            disponibilite.agent = request.user
+            disponibilite.profil = profil
             disponibilite.save()
 
             if modal:
@@ -98,10 +121,11 @@ def ajouter_disponibilite(request):
 
 @login_required
 def modifier_disponibilite(request, pk):
+    profil = profil_operationnel(request.user)
     disponibilite = get_object_or_404(
         Disponibilite,
         pk=pk,
-        agent=request.user,
+        profil=profil,
     )
 
     modal = request.headers.get("X-Requested-With") == "XMLHttpRequest"
@@ -142,10 +166,11 @@ def modifier_disponibilite(request, pk):
 
 @login_required
 def supprimer_disponibilite(request, pk):
+    profil = profil_operationnel(request.user)
     disponibilite = get_object_or_404(
         Disponibilite,
         pk=pk,
-        agent=request.user,
+        profil=profil,
     )
 
     if request.method == "POST":
@@ -192,8 +217,9 @@ def planning_hebdomadaire(request):
             debut__lt=fin_semaine,
             fin__gt=debut_semaine,
         )
-        .select_related("agent")
-        .order_by("debut", "agent__username")
+        .filter(profil__utilisateur__is_active=True)
+        .select_related("profil__utilisateur")
+        .order_by("debut", "profil__utilisateur__username")
     )
 
     jours = []
@@ -248,6 +274,7 @@ def planning_hebdomadaire(request):
 @login_required
 @xframe_options_sameorigin
 def copier_journee_disponibilites(request):
+    profil = profil_operationnel(request.user)
     modal = request.headers.get("X-Requested-With") == "XMLHttpRequest"
 
     if request.method == "POST":
@@ -259,16 +286,29 @@ def copier_journee_disponibilites(request):
                 "dates_destination"
             ]
 
-            resultat = copier_journee(
-                agent=request.user,
-                date_source=date_source,
-                dates_destination=dates_destination,
-            )
+            try:
+                resultat = copier_journee(
+                    profil=profil,
+                    date_source=date_source,
+                    dates_destination=dates_destination,
+                )
+            except (ValidationError, OverflowError) as erreur:
+                formulaire.add_error(
+                    None,
+                    "Copie impossible : horaires ou dates invalides. "
+                    "Aucune disponibilite n'a ete modifiee.",
+                )
+                return render(
+                    request,
+                    "planning/copier_journee.html",
+                    {"formulaire": formulaire},
+                    status=400 if modal else 200,
+                )
 
             if resultat["creneaux_source"] == 0:
                 message = (
-                    "Aucune disponibilité ne commence "
-                    "à la date source sélectionnée."
+                    "Aucune disponibilité ne couvre "
+                    "la journée source sélectionnée."
                 )
                 messages.warning(request, message)
             else:

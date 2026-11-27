@@ -275,10 +275,10 @@
                 {% for dispo in jour.disponibilites %}
                     <div class="disponibilite">
                         <div class="agent">
-                            {% if dispo.agent.get_full_name %}
-                                {{ dispo.agent.get_full_name }}
+                            {% if dispo.profil.utilisateur.get_full_name %}
+                                {{ dispo.profil.utilisateur.get_full_name }}
                             {% else %}
-                                {{ dispo.agent.username }}
+                                {{ dispo.profil.utilisateur.username }}
                             {% endif %}
                         </div>
 
