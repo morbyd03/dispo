@@ -132,6 +132,7 @@ def modifier_competence(
     validateur_id,
     date_validation,
     date_expiration,
+    retourner_changement=False,
 ):
     try:
         with transaction.atomic():
@@ -166,7 +167,7 @@ def modifier_competence(
                 attribution.date_validation == date_validation
                 and attribution.date_expiration == date_expiration
             ):
-                return attribution
+                return (attribution, False) if retourner_changement else attribution
 
             avant = etat_attribution(attribution)
 
@@ -190,7 +191,7 @@ def modifier_competence(
                 },
             )
 
-            return attribution
+            return (attribution, True) if retourner_changement else attribution
 
     except IntegrityError as erreur:
         raise ValidationError(
@@ -245,3 +246,67 @@ def retirer_competence(*, attribution_id, validateur_id):
         raise ValidationError(
             "Impossible de retirer cette compétence : conflit de données."
         ) from erreur
+
+
+def appliquer_modifications_collectives(*, operations, validateur_id):
+    if not isinstance(operations, (list, tuple)):
+        raise ValidationError("Liste d'opérations invalide.")
+
+    resultats = {
+        "attributions": 0,
+        "modifications": 0,
+        "retraits": 0,
+        "inchanges": 0,
+    }
+
+    with transaction.atomic():
+        for operation in operations:
+            if not isinstance(operation, dict):
+                raise ValidationError("Opération invalide.")
+
+            action = operation.get("action")
+
+            if action == "attribuer":
+                attribuer_competence(
+                    profil_id=operation.get("profil_id"),
+                    competence_id=operation.get("competence_id"),
+                    validateur_id=validateur_id,
+                    date_validation=operation.get("date_validation"),
+                    date_expiration=operation.get("date_expiration"),
+                )
+
+                resultats["attributions"] += 1
+
+            elif action == "modifier":
+                if not {
+                    "date_validation", "date_expiration"
+                }.issubset(operation):
+                    raise ValidationError(
+                        "Les deux dates doivent être renseignées explicitement."
+                    )
+
+                _, changement = modifier_competence(
+                    attribution_id=operation.get("attribution_id"),
+                    validateur_id=validateur_id,
+                    date_validation=operation["date_validation"],
+                    date_expiration=operation["date_expiration"],
+                    retourner_changement=True,
+                )
+
+                if changement:
+                    resultats["modifications"] += 1
+                else:
+                    resultats["inchanges"] += 1
+
+            elif action == "retirer":
+                retirer_competence(
+                    attribution_id=operation.get("attribution_id"),
+                    validateur_id=validateur_id,
+                )
+
+                resultats["retraits"] += 1
+
+            else:
+                raise ValidationError("Action collective inconnue.")
+
+    return resultats

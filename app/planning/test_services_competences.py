@@ -423,3 +423,160 @@ class JournalCompetencesTests(TestCase):
 
         self.assertEqual(CompetenceAgent.objects.count(), 1)
         self.assertEqual(JournalAction.objects.count(), 1)
+
+
+class GestionCollectiveCompetencesTests(TestCase):
+
+    def setUp(self):
+        User = get_user_model()
+
+        self.validateur = User.objects.create(
+            username="administrateur",
+            is_superuser=True,
+        )
+
+        self.profils = [
+            ProfilAgent.objects.create(
+                utilisateur=User.objects.create(username=matricule)
+            )
+            for matricule in ("000123", "000124")
+        ]
+
+        self.competence = Competence.objects.get(code="cod1")
+
+        self.operations = [
+            {
+                "action": "attribuer",
+                "profil_id": profil.pk,
+                "competence_id": self.competence.pk,
+            }
+            for profil in self.profils
+        ]
+
+    def appliquer(self, operations):
+        from .services.competences import (
+            appliquer_modifications_collectives,
+        )
+
+        return appliquer_modifications_collectives(
+            operations=operations,
+            validateur_id=self.validateur.pk,
+        )
+
+    def test_attributions_collectives(self):
+        from .models import JournalAction
+
+        resultat = self.appliquer(self.operations)
+
+        self.assertEqual(resultat["attributions"], 2)
+        self.assertEqual(CompetenceAgent.objects.count(), 2)
+        self.assertEqual(JournalAction.objects.count(), 2)
+
+    def test_annulation_complete_du_lot(self):
+        from .models import JournalAction
+
+        self.operations[1]["competence_id"] = 999999
+
+        with self.assertRaises(ValidationError):
+            self.appliquer(self.operations)
+
+        self.assertFalse(CompetenceAgent.objects.exists())
+        self.assertFalse(JournalAction.objects.exists())
+
+    def test_modification_et_retrait(self):
+        from .models import JournalAction
+
+        self.appliquer(self.operations)
+
+        premiere, seconde = list(
+            CompetenceAgent.objects.order_by("pk")
+        )
+
+        resultat = self.appliquer([
+            {
+                "action": "modifier",
+                "attribution_id": premiere.pk,
+                "date_validation": "2026-01-01",
+                "date_expiration": "2027-01-01",
+            },
+            {
+                "action": "retirer",
+                "attribution_id": seconde.pk,
+            },
+        ])
+
+        premiere.refresh_from_db()
+
+        self.assertEqual(resultat["modifications"], 1)
+        self.assertEqual(resultat["retraits"], 1)
+        self.assertEqual(CompetenceAgent.objects.count(), 1)
+        self.assertEqual(
+            premiere.date_expiration,
+            date(2027, 1, 1),
+        )
+        self.assertEqual(JournalAction.objects.count(), 4)
+
+    def test_action_inconnue(self):
+        with self.assertRaises(ValidationError):
+            self.appliquer([{"action": "inconnue"}])
+
+    def test_lot_vide(self):
+        self.assertEqual(
+            self.appliquer([]),
+            {
+                "attributions": 0,
+                "modifications": 0,
+                "retraits": 0,
+                "inchanges": 0,
+            },
+        )
+
+    def test_permissions_collectives(self):
+        from django.core.exceptions import PermissionDenied
+        from django.contrib.auth.models import Permission
+        from .models import JournalAction
+
+        self.validateur.is_superuser = False
+        self.validateur.save(update_fields=["is_superuser"])
+
+        permission = Permission.objects.get(
+            content_type__app_label="planning",
+            codename="add_competenceagent",
+        )
+
+        self.validateur.user_permissions.add(permission)
+
+        self.appliquer(self.operations)
+
+        attribution = CompetenceAgent.objects.first()
+
+        with self.assertRaises(PermissionDenied):
+            self.appliquer([
+                {
+                    "action": "retirer",
+                    "attribution_id": attribution.pk,
+                }
+            ])
+
+        self.assertEqual(CompetenceAgent.objects.count(), 2)
+        self.assertEqual(JournalAction.objects.count(), 2)
+
+    def test_modification_collective_sans_changement(self):
+        from .models import JournalAction
+
+        self.appliquer(self.operations)
+
+        attribution = CompetenceAgent.objects.first()
+
+        resultat = self.appliquer([
+            {
+                "action": "modifier",
+                "attribution_id": attribution.pk,
+                "date_validation": None,
+                "date_expiration": None,
+            }
+        ])
+
+        self.assertEqual(resultat["modifications"], 0)
+        self.assertEqual(resultat["inchanges"], 1)
+        self.assertEqual(JournalAction.objects.count(), 2)
