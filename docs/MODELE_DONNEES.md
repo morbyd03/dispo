@@ -29,9 +29,10 @@ erDiagram
     USER ||--o| PROFIL_AGENT : possede
     GRADE o|--o{ PROFIL_AGENT : caracterise
     PROFIL_AGENT }o--o{ FONCTION_AGENT : exerce
-    USER ||--o{ COMPETENCE_AGENT : detient
+    PROFIL_AGENT ||--o{ COMPETENCE_AGENT : detient
     COMPETENCE ||--o{ COMPETENCE_AGENT : reference
-    USER ||--o{ DISPONIBILITE : declare
+    PROFIL_AGENT ||--o{ DISPONIBILITE : declare
+    USER o|--o{ COMPETENCE_AGENT : valide
 ```
 
 ## Identité et authentification
@@ -59,7 +60,7 @@ la migration des installations existantes.
 
 Les compétences sont définies dans un catalogue indépendant.
 
-La table CompetenceAgent assure la liaison entre les comptes
+La table CompetenceAgent assure la liaison entre les profils
 agents et les compétences.
 
 Elle conserve les dates de validation et d'expiration,
@@ -103,3 +104,18 @@ Les tests existants restent conservés.
 - Communications internes.
 - Gestion des stocks et de la pharmacie.
 - Inventaires des véhicules et des matériels.
+
+
+## Relations opérationnelles
+
+Les disponibilités et les attributions de compétences
+référencent obligatoirement un ProfilAgent.
+
+Un compte technique peut exister sans profil agent.
+
+La suppression d'un profil possédant des disponibilités
+ou des compétences est protégée.
+
+La migration 0014 supprime les anciennes relations vers User.
+Elle nécessite une sauvegarde préalable et bloque les
+relations absentes ou incohérentes.

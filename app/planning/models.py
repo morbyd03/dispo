@@ -107,18 +107,10 @@ class Disponibilite(models.Model):
     profil = models.ForeignKey(
         ProfilAgent,
         on_delete=models.PROTECT,
-        null=True,
-        blank=True,
         related_name="disponibilites_operationnelles",
         verbose_name="Profil agent",
     )
 
-    agent = models.ForeignKey(
-        settings.AUTH_USER_MODEL,
-        on_delete=models.CASCADE,
-        related_name="disponibilites",
-        verbose_name="Agent",
-    )
 
     debut = models.DateTimeField(
         verbose_name="Début de disponibilité",
@@ -148,7 +140,7 @@ class Disponibilite(models.Model):
 
     def __str__(self):
         return (
-            f"{self.agent} : "
+            f"{self.profil} : "
             f"{self.debut:%d/%m/%Y %H:%M} - "
             f"{self.fin:%d/%m/%Y %H:%M}"
         )
@@ -185,17 +177,10 @@ class CompetenceAgent(models.Model):
     profil = models.ForeignKey(
         ProfilAgent,
         on_delete=models.PROTECT,
-        null=True,
-        blank=True,
         related_name="attributions_competences",
         verbose_name="Profil agent",
     )
 
-    agent = models.ForeignKey(
-        settings.AUTH_USER_MODEL,
-        on_delete=models.CASCADE,
-        related_name="competences_agent",
-    )
     competence = models.ForeignKey(
         Competence,
         on_delete=models.PROTECT,
@@ -223,10 +208,6 @@ class CompetenceAgent(models.Model):
         verbose_name_plural = "Compétences des agents"
         constraints = [
             models.UniqueConstraint(
-                fields=["agent", "competence"],
-                name="unique_competence_par_agent",
-            ),
-            models.UniqueConstraint(
                 fields=["profil", "competence"],
                 name="unique_competence_par_profil",
             ),
@@ -243,4 +224,4 @@ class CompetenceAgent(models.Model):
         ]
 
     def __str__(self):
-        return f"{self.agent} - {self.competence}"
+        return f"{self.profil} - {self.competence}"
