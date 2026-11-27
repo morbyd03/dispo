@@ -261,3 +261,31 @@ class JournalAction(models.Model):
 
     def __str__(self):
         return f"{self.action} - {self.type_objet} #{self.objet_id}"
+
+
+class ConfirmationImport(models.Model):
+
+    empreinte = models.CharField(
+        max_length=64,
+        unique=True,
+        editable=False,
+    )
+
+    auteur = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        related_name="imports_confirmes",
+    )
+
+    date_confirmation = models.DateTimeField(
+        auto_now_add=True,
+    )
+
+    class Meta:
+        ordering = ["-date_confirmation"]
+        verbose_name = "Confirmation d'import"
+        verbose_name_plural = "Confirmations d'import"
+
+    def __str__(self):
+        return f"Import #{self.pk}"
