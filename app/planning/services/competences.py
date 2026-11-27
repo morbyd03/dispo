@@ -10,6 +10,7 @@ from ..models import (
     CompetenceAgent,
 )
 from .agents import verifier_identifiant
+from .journal import journaliser
 
 
 def verifier_date(valeur):
@@ -83,13 +84,22 @@ def attribuer_competence(
                     "Cette compétence est déjà attribuée."
                 )
 
-            return CompetenceAgent.objects.create(
+            attribution = CompetenceAgent.objects.create(
                 profil=profil,
                 competence=competence,
                 valide_par=validateur,
                 date_validation=date_validation,
                 date_expiration=date_expiration,
             )
+
+            journaliser(
+                auteur=validateur,
+                action="competence.attribuer",
+                objet=attribution,
+                details=etat_attribution(attribution),
+            )
+
+            return attribution
 
     except IntegrityError as erreur:
         raise ValidationError(
@@ -158,6 +168,8 @@ def modifier_competence(
             ):
                 return attribution
 
+            avant = etat_attribution(attribution)
+
             attribution.date_validation = date_validation
             attribution.date_expiration = date_expiration
             attribution.valide_par = validateur
@@ -168,9 +180,68 @@ def modifier_competence(
                 "valide_par",
             ])
 
+            journaliser(
+                auteur=validateur,
+                action="competence.modifier",
+                objet=attribution,
+                details={
+                    "avant": avant,
+                    "apres": etat_attribution(attribution),
+                },
+            )
+
             return attribution
 
     except IntegrityError as erreur:
         raise ValidationError(
             "Impossible de modifier cette compétence : conflit de données."
+        ) from erreur
+
+
+def etat_attribution(attribution):
+    return {
+        "profil_id": attribution.profil_id,
+        "competence_id": attribution.competence_id,
+        "validateur_id": attribution.valide_par_id,
+        "date_validation": (
+            attribution.date_validation.isoformat()
+            if attribution.date_validation else None
+        ),
+        "date_expiration": (
+            attribution.date_expiration.isoformat()
+            if attribution.date_expiration else None
+        ),
+    }
+
+
+def retirer_competence(*, attribution_id, validateur_id):
+    try:
+        with transaction.atomic():
+            validateur = verifier_validateur(
+                validateur_id, "delete_competenceagent"
+            )
+
+            attribution_id = verifier_identifiant(attribution_id)
+
+            attribution = CompetenceAgent.objects.filter(
+                pk=attribution_id
+            ).first()
+
+            if attribution is None:
+                raise ValidationError(
+                    "Cette attribution n'existe pas."
+                )
+
+            journaliser(
+                auteur=validateur,
+                action="competence.retirer",
+                objet=attribution,
+                details=etat_attribution(attribution),
+            )
+
+            attribution.delete()
+
+    except IntegrityError as erreur:
+        raise ValidationError(
+            "Impossible de retirer cette compétence : conflit de données."
         ) from erreur

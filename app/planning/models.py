@@ -225,3 +225,39 @@ class CompetenceAgent(models.Model):
 
     def __str__(self):
         return f"{self.profil} - {self.competence}"
+
+
+class JournalAction(models.Model):
+
+    auteur = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="actions_journalisees",
+    )
+
+    action = models.CharField(max_length=100)
+
+    type_objet = models.CharField(max_length=100)
+
+    objet_id = models.PositiveBigIntegerField()
+
+    details = models.JSONField(default=dict, blank=True)
+
+    date_action = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["-date_action", "-pk"]
+        verbose_name = "Action journalisée"
+        verbose_name_plural = "Actions journalisées"
+
+        indexes = [
+            models.Index(
+                fields=["type_objet", "objet_id"],
+                name="journal_objet_idx",
+            ),
+        ]
+
+    def __str__(self):
+        return f"{self.action} - {self.type_objet} #{self.objet_id}"
