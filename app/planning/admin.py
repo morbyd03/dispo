@@ -65,8 +65,68 @@ class CompetenceAgentAdmin(admin.ModelAdmin):
     autocomplete_fields = ("profil", "competence")
     readonly_fields = ("valide_par",)
 
-    def save_model(self, request, obj, form, change):
-        if not change or form.changed_data:
-            obj.valide_par = request.user
+    actions = None
 
-        super().save_model(request, obj, form, change)
+    def has_add_permission(self, request):
+        return False
+
+    def has_change_permission(self, request, obj=None):
+        return False
+
+    def has_delete_permission(self, request, obj=None):
+        return False
+
+
+from .models import JournalAction
+
+
+@admin.register(JournalAction)
+class JournalActionAdmin(admin.ModelAdmin):
+    list_display = (
+        "date_action",
+        "auteur",
+        "action",
+        "type_objet",
+        "objet_id",
+    )
+
+    list_filter = (
+        "action",
+        "type_objet",
+        "date_action",
+    )
+
+    search_fields = (
+        "auteur__username",
+        "action",
+        "type_objet",
+    )
+
+    readonly_fields = (
+        "date_action",
+        "auteur",
+        "action",
+        "type_objet",
+        "objet_id",
+        "details",
+    )
+
+    list_select_related = ("auteur",)
+    date_hierarchy = "date_action"
+    list_per_page = 50
+    actions = None
+
+    def has_view_permission(self, request, obj=None):
+        return (
+            request.user.is_active
+            and request.user.is_superuser
+        )
+
+    def has_add_permission(self, request):
+        return False
+
+    def has_change_permission(self, request, obj=None):
+        return False
+
+    def has_delete_permission(self, request, obj=None):
+        return False
