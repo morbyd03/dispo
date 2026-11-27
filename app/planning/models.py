@@ -1,5 +1,70 @@
 from django.conf import settings
 from django.db import models
+from django.core.validators import RegexValidator
+
+
+class Grade(models.Model):
+    code = models.CharField(
+        max_length=12,
+        unique=True,
+        validators=[
+            RegexValidator(
+                regex=r"^[A-Z0-9]+\Z",
+                message="Utilisez uniquement des lettres majuscules et des chiffres.",
+            ),
+        ],
+        verbose_name="Code du grade",
+    )
+    nom = models.CharField(
+        max_length=100,
+        unique=True,
+        verbose_name="Appellation",
+    )
+    ordre = models.PositiveSmallIntegerField(
+        default=0,
+        verbose_name="Ordre hiérarchique",
+    )
+    galon = models.CharField(
+        max_length=150,
+        blank=True,
+        verbose_name="Fichier du galon",
+    )
+    active = models.BooleanField(
+        default=True,
+        verbose_name="Actif",
+    )
+
+    class Meta:
+        ordering = ["-ordre", "nom"]
+        verbose_name = "Grade"
+        verbose_name_plural = "Grades"
+
+    def __str__(self):
+        return f"{self.code} - {self.nom}"
+
+
+class FonctionAgent(models.Model):
+    nom = models.CharField(
+        max_length=100,
+        unique=True,
+        verbose_name="Fonction",
+    )
+    description = models.TextField(
+        blank=True,
+        verbose_name="Description",
+    )
+    active = models.BooleanField(
+        default=True,
+        verbose_name="Active",
+    )
+
+    class Meta:
+        ordering = ["nom"]
+        verbose_name = "Fonction"
+        verbose_name_plural = "Fonctions"
+
+    def __str__(self):
+        return self.nom
 
 
 class ProfilAgent(models.Model):
@@ -8,6 +73,26 @@ class ProfilAgent(models.Model):
         on_delete=models.CASCADE,
         related_name="profil_agent",
         verbose_name="Utilisateur",
+    )
+
+    grade = models.ForeignKey(
+        Grade,
+        on_delete=models.PROTECT,
+        null=True,
+        blank=True,
+        related_name="agents",
+        verbose_name="Grade",
+    )
+    telephone = models.CharField(
+        max_length=30,
+        blank=True,
+        verbose_name="Téléphone",
+    )
+    fonctions = models.ManyToManyField(
+        FonctionAgent,
+        blank=True,
+        related_name="agents",
+        verbose_name="Fonctions dans le centre",
     )
 
     def __str__(self):
