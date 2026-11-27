@@ -104,6 +104,15 @@ class ProfilAgent(models.Model):
 
 
 class Disponibilite(models.Model):
+    profil = models.ForeignKey(
+        ProfilAgent,
+        on_delete=models.PROTECT,
+        null=True,
+        blank=True,
+        related_name="disponibilites_operationnelles",
+        verbose_name="Profil agent",
+    )
+
     agent = models.ForeignKey(
         settings.AUTH_USER_MODEL,
         on_delete=models.CASCADE,
@@ -148,6 +157,12 @@ class Disponibilite(models.Model):
         verbose_name = "Disponibilité"
         verbose_name_plural = "Disponibilités"
         ordering = ["debut"]
+        constraints = [
+            models.CheckConstraint(
+                condition=models.Q(fin__gt=models.F("debut")),
+                name="disponibilite_fin_apres_debut",
+            ),
+        ]
 
 
 class Competence(models.Model):
@@ -167,6 +182,15 @@ class Competence(models.Model):
 
 
 class CompetenceAgent(models.Model):
+    profil = models.ForeignKey(
+        ProfilAgent,
+        on_delete=models.PROTECT,
+        null=True,
+        blank=True,
+        related_name="attributions_competences",
+        verbose_name="Profil agent",
+    )
+
     agent = models.ForeignKey(
         settings.AUTH_USER_MODEL,
         on_delete=models.CASCADE,
@@ -201,6 +225,20 @@ class CompetenceAgent(models.Model):
             models.UniqueConstraint(
                 fields=["agent", "competence"],
                 name="unique_competence_par_agent",
+            ),
+            models.UniqueConstraint(
+                fields=["profil", "competence"],
+                name="unique_competence_par_profil",
+            ),
+            models.CheckConstraint(
+                condition=(
+                    models.Q(date_validation__isnull=True)
+                    | models.Q(date_expiration__isnull=True)
+                    | models.Q(
+                        date_expiration__gte=models.F("date_validation")
+                    )
+                ),
+                name="competence_dates_coherentes",
             ),
         ]
 
