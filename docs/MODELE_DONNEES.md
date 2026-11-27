@@ -119,3 +119,29 @@ ou des compétences est protégée.
 La migration 0014 supprime les anciennes relations vers User.
 Elle nécessite une sauvegarde préalable et bloque les
 relations absentes ou incohérentes.
+
+## Identité et unicité des comptes
+
+Le modèle utilisateur natif auth.User est conservé.
+
+Le matricule est stocké dans username sous forme de chaîne
+de caractères afin de préserver les éventuels zéros initiaux.
+
+La migration 0015 introduit un index unique partiel SQLite
+sur LOWER(TRIM(email)) dans la table auth_user.
+
+Les adresses non vides doivent être uniques, indépendamment
+de la casse ASCII et des espaces ordinaires périphériques.
+
+Les comptes techniques peuvent ne pas posséder d'adresse
+e-mail ni de profil agent.
+
+La présence de cet index doit être vérifiée après chaque
+évolution du schéma de la table auth_user.
+
+Les doublons historiques bloquent la migration sans
+modification automatique des comptes existants.
+
+Les règles de validation des identités agents et la
+normalisation des adresses seront appliquées dans les
+services métier et les interfaces de gestion.
