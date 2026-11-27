@@ -12,9 +12,15 @@ from .services.agents import creer_agent
 class CreationAgentTests(TestCase):
 
     def setUp(self):
+        self.auteur = get_user_model().objects.create(
+            username="administrateur",
+            is_superuser=True,
+        )
+
         self.grade = Grade.objects.get(code="SAP1")
 
         self.donnees = {
+            "auteur_id": self.auteur.pk,
             "matricule": "000123",
             "nom": "Dupont",
             "prenom": "Jean",
@@ -50,7 +56,7 @@ class CreationAgentTests(TestCase):
         with self.assertRaises(ValidationError):
             creer_agent(**self.donnees)
 
-        self.assertEqual(get_user_model().objects.count(), 0)
+        self.assertEqual(get_user_model().objects.exclude(pk=self.auteur.pk).count(), 0)
 
     def test_grade_inactif(self):
         self.grade.active = False
@@ -74,7 +80,7 @@ class CreationAgentTests(TestCase):
         with self.assertRaises(ValidationError):
             creer_agent(**self.donnees)
 
-        self.assertEqual(get_user_model().objects.count(), 1)
+        self.assertEqual(get_user_model().objects.exclude(pk=self.auteur.pk).count(), 1)
 
     def test_creation_inactive(self):
         profil = creer_agent(**self.donnees, actif=False)
@@ -88,7 +94,7 @@ class CreationAgentTests(TestCase):
             with self.assertRaises(ValidationError):
                 creer_agent(**self.donnees)
 
-        self.assertEqual(get_user_model().objects.count(), 0)
+        self.assertEqual(get_user_model().objects.exclude(pk=self.auteur.pk).count(), 0)
         self.assertEqual(ProfilAgent.objects.count(), 0)
 
     def test_creation_sans_fonction(self):
@@ -125,7 +131,7 @@ class CreationAgentTests(TestCase):
                 fonctions_ids=[fonction.pk],
             )
 
-        self.assertEqual(get_user_model().objects.count(), 0)
+        self.assertEqual(get_user_model().objects.exclude(pk=self.auteur.pk).count(), 0)
 
     def test_fonction_inexistante(self):
         with self.assertRaises(ValidationError):
@@ -134,7 +140,7 @@ class CreationAgentTests(TestCase):
                 fonctions_ids=[999999],
             )
 
-        self.assertEqual(get_user_model().objects.count(), 0)
+        self.assertEqual(get_user_model().objects.exclude(pk=self.auteur.pk).count(), 0)
 
     def test_fonction_dupliquee(self):
         from .models import FonctionAgent
@@ -154,6 +160,11 @@ class CreationAgentTests(TestCase):
 class ModificationAgentTests(TestCase):
 
     def setUp(self):
+        self.auteur = get_user_model().objects.create(
+            username="administrateur",
+            is_superuser=True,
+        )
+
         from .models import FonctionAgent
 
         self.grade = Grade.objects.get(code="SAP1")
@@ -164,6 +175,7 @@ class ModificationAgentTests(TestCase):
         )
 
         self.profil = creer_agent(
+            auteur_id=self.auteur.pk,
             matricule="000123",
             nom="Dupont",
             prenom="Jean",
@@ -172,6 +184,7 @@ class ModificationAgentTests(TestCase):
         )
 
         self.donnees = {
+            "auteur_id": self.auteur.pk,
             "profil_id": self.profil.pk,
             "nom": "Durand",
             "prenom": "Jean-Pierre",
@@ -367,6 +380,11 @@ class ValidationIdentifiantsTests(TestCase):
 class RattachementProfilTests(TestCase):
 
     def setUp(self):
+        self.auteur = get_user_model().objects.create(
+            username="administrateur",
+            is_superuser=True,
+        )
+
         self.grade = Grade.objects.get(code="SAP1")
 
         self.compte = get_user_model().objects.create_user(
@@ -378,6 +396,7 @@ class RattachementProfilTests(TestCase):
         )
 
         self.donnees = {
+            "auteur_id": self.auteur.pk,
             "utilisateur_id": self.compte.pk,
             "grade_id": self.grade.pk,
         }
@@ -389,7 +408,7 @@ class RattachementProfilTests(TestCase):
 
         self.assertEqual(profil.utilisateur_id, self.compte.pk)
         self.assertEqual(profil.grade, self.grade)
-        self.assertEqual(get_user_model().objects.count(), 1)
+        self.assertEqual(get_user_model().objects.exclude(pk=self.auteur.pk).count(), 1)
         self.assertEqual(ProfilAgent.objects.count(), 1)
 
     def test_preservation_compte(self):
@@ -491,5 +510,150 @@ class RattachementProfilTests(TestCase):
             with self.assertRaises(ValidationError):
                 rattacher_profil_agent(**self.donnees)
 
-        self.assertEqual(get_user_model().objects.count(), 1)
+        self.assertEqual(get_user_model().objects.exclude(pk=self.auteur.pk).count(), 1)
         self.assertFalse(ProfilAgent.objects.exists())
+
+
+class SecuriteServicesAgentsTests(TestCase):
+
+    def setUp(self):
+        User = get_user_model()
+
+        self.admin = User.objects.create(
+            username="administrateur",
+            is_superuser=True,
+        )
+
+        self.agent = User.objects.create(
+            username="000124",
+            first_name="Paul",
+            last_name="Martin",
+            email="paul@example.com",
+        )
+
+        self.grade = Grade.objects.get(code="SAP1")
+
+        self.donnees = {
+            "auteur_id": self.admin.pk,
+            "matricule": "000123",
+            "nom": "Dupont",
+            "prenom": "Jean",
+            "email": "jean@example.com",
+            "grade_id": self.grade.pk,
+        }
+
+    def test_auteur_obligatoire(self):
+        del self.donnees["auteur_id"]
+
+        with self.assertRaises(TypeError):
+            creer_agent(**self.donnees)
+
+    def test_creation_par_agent_refusee(self):
+        from django.core.exceptions import PermissionDenied
+
+        self.donnees["auteur_id"] = self.agent.pk
+
+        with self.assertRaises(PermissionDenied):
+            creer_agent(**self.donnees)
+
+        self.assertFalse(ProfilAgent.objects.exists())
+
+    def test_auteur_inactif_refuse(self):
+        from django.core.exceptions import PermissionDenied
+
+        self.admin.is_active = False
+        self.admin.save(update_fields=["is_active"])
+
+        with self.assertRaises(PermissionDenied):
+            creer_agent(**self.donnees)
+
+    def test_administrateur_sans_permission_refuse(self):
+        from django.contrib.auth.models import Group
+        from django.core.exceptions import PermissionDenied
+
+        groupe, _ = Group.objects.get_or_create(
+            name="Administrateurs Dispo"
+        )
+
+        self.agent.groups.add(groupe)
+        self.donnees["auteur_id"] = self.agent.pk
+
+        with self.assertRaises(PermissionDenied):
+            creer_agent(**self.donnees)
+
+    def test_administrateur_autorise(self):
+        from django.contrib.auth.models import Group, Permission
+
+        groupe, _ = Group.objects.get_or_create(
+            name="Administrateurs Dispo"
+        )
+
+        permission = Permission.objects.get(
+            content_type__app_label="auth",
+            codename="add_user",
+        )
+
+        groupe.permissions.add(permission)
+        self.agent.groups.add(groupe)
+
+        self.donnees["auteur_id"] = self.agent.pk
+
+        profil = creer_agent(**self.donnees)
+
+        self.assertEqual(profil.utilisateur.username, "000123")
+
+    def test_permission_seule_insuffisante(self):
+        from django.contrib.auth.models import Permission
+        from django.core.exceptions import PermissionDenied
+
+        permission = Permission.objects.get(
+            content_type__app_label="auth",
+            codename="add_user",
+        )
+
+        self.agent.user_permissions.add(permission)
+        self.donnees["auteur_id"] = self.agent.pk
+
+        with self.assertRaises(PermissionDenied):
+            creer_agent(**self.donnees)
+
+    def test_modification_non_autorisee(self):
+        from django.core.exceptions import PermissionDenied
+        from .services.agents import modifier_agent
+
+        profil = creer_agent(**self.donnees)
+
+        with self.assertRaises(PermissionDenied):
+            modifier_agent(
+                auteur_id=self.agent.pk,
+                profil_id=profil.pk,
+                nom="Modifie",
+                prenom="Jean",
+                grade_id=self.grade.pk,
+                telephone="",
+                fonctions_ids=[],
+            )
+
+        profil.utilisateur.refresh_from_db()
+        self.assertEqual(profil.utilisateur.last_name, "Dupont")
+
+    def test_rattachement_non_autorise(self):
+        from django.core.exceptions import PermissionDenied
+        from .services.agents import rattacher_profil_agent
+
+        with self.assertRaises(PermissionDenied):
+            rattacher_profil_agent(
+                auteur_id=self.agent.pk,
+                utilisateur_id=self.agent.pk,
+                grade_id=self.grade.pk,
+            )
+
+        self.assertFalse(ProfilAgent.objects.exists())
+
+    def test_statut_non_booleen_refuse(self):
+        with self.assertRaises(ValidationError):
+            creer_agent(**self.donnees, actif="false")
+
+    def test_liste_fonctions_invalide(self):
+        with self.assertRaises(ValidationError):
+            creer_agent(**self.donnees, fonctions_ids="123")

@@ -10,6 +10,10 @@ from ..models import (
     CompetenceAgent,
 )
 from .agents import verifier_identifiant
+from ..autorisations import (
+    exiger_permission,
+    compte_privilegie,
+)
 from .journal import journaliser
 
 
@@ -63,6 +67,8 @@ def attribuer_competence(
             validateur = verifier_validateur(
                 validateur_id, "add_competenceagent"
             )
+
+            verifier_cible_qualification(validateur, profil)
 
             date_validation = verifier_date(date_validation)
             date_expiration = verifier_date(date_expiration)
@@ -118,12 +124,26 @@ def verifier_validateur(validateur_id, permission):
     if validateur is None:
         raise ValidationError("Validateur invalide.")
 
-    if not validateur.has_perm(f"planning.{permission}"):
-        raise PermissionDenied(
-            "Vous ne disposez pas des autorisations nécessaires."
-        )
+    exiger_permission(validateur, f"planning.{permission}")
 
     return validateur
+
+
+def verifier_cible_qualification(validateur, profil):
+    cible = profil.utilisateur
+
+    if validateur.pk == cible.pk:
+        raise PermissionDenied(
+            "Vous ne pouvez pas valider vos propres qualifications."
+        )
+
+    if cible.is_staff or cible.is_superuser:
+        raise PermissionDenied("Ce compte technique est protege.")
+
+    if compte_privilegie(cible) and not validateur.is_superuser:
+        raise PermissionDenied(
+            "Ce compte necessite un superutilisateur."
+        )
 
 
 def modifier_competence(
@@ -150,6 +170,10 @@ def modifier_competence(
                 raise ValidationError(
                     "Cette attribution n'existe pas."
                 )
+
+            verifier_cible_qualification(
+                validateur, attribution.profil
+            )
 
             date_validation = verifier_date(date_validation)
             date_expiration = verifier_date(date_expiration)
@@ -232,6 +256,10 @@ def retirer_competence(*, attribution_id, validateur_id):
                 raise ValidationError(
                     "Cette attribution n'existe pas."
                 )
+
+            verifier_cible_qualification(
+                validateur, attribution.profil
+            )
 
             journaliser(
                 auteur=validateur,

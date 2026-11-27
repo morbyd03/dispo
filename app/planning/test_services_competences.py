@@ -580,3 +580,139 @@ class GestionCollectiveCompetencesTests(TestCase):
         self.assertEqual(resultat["modifications"], 0)
         self.assertEqual(resultat["inchanges"], 1)
         self.assertEqual(JournalAction.objects.count(), 2)
+
+
+class SecuriteCibleQualificationTests(TestCase):
+
+    def setUp(self):
+        from django.contrib.auth.models import Permission
+        from .models import Grade
+
+        User = get_user_model()
+
+        self.validateur = User.objects.create(
+            username="validateur",
+        )
+
+        self.admin = User.objects.create(
+            username="administrateur",
+            is_superuser=True,
+        )
+
+        self.agent = User.objects.create(
+            username="000123",
+        )
+
+        self.validateur.user_permissions.set(
+            Permission.objects.filter(
+                content_type__app_label="planning",
+                codename__in=[
+                    "add_competenceagent",
+                    "change_competenceagent",
+                    "delete_competenceagent",
+                ],
+            )
+        )
+
+        grade = Grade.objects.get(code="SAP1")
+
+        self.profil = ProfilAgent.objects.create(
+            utilisateur=self.agent,
+            grade=grade,
+        )
+
+        self.profil_validateur = ProfilAgent.objects.create(
+            utilisateur=self.validateur,
+            grade=grade,
+        )
+
+        self.competence = Competence.objects.get(code="cod1")
+
+    def attribuer(self, profil, validateur):
+        from .services.competences import attribuer_competence
+
+        return attribuer_competence(
+            profil_id=profil.pk,
+            competence_id=self.competence.pk,
+            validateur_id=validateur.pk,
+        )
+
+    def test_delegation_autorisee(self):
+        attribution = self.attribuer(
+            self.profil, self.validateur
+        )
+        self.assertEqual(attribution.profil_id, self.profil.pk)
+
+    def test_auto_attribution_refusee(self):
+        from django.core.exceptions import PermissionDenied
+
+        with self.assertRaises(PermissionDenied):
+            self.attribuer(
+                self.profil_validateur, self.validateur
+            )
+
+    def test_compte_technique_protege(self):
+        from django.core.exceptions import PermissionDenied
+
+        self.agent.is_staff = True
+        self.agent.save(update_fields=["is_staff"])
+
+        with self.assertRaises(PermissionDenied):
+            self.attribuer(self.profil, self.admin)
+
+    def test_compte_privilegie_protege(self):
+        from django.contrib.auth.models import Group
+        from django.core.exceptions import PermissionDenied
+
+        groupe, _ = Group.objects.get_or_create(
+            name="Administrateurs Dispo"
+        )
+        self.agent.groups.add(groupe)
+
+        with self.assertRaises(PermissionDenied):
+            self.attribuer(self.profil, self.validateur)
+
+    def test_superutilisateur_autorise(self):
+        attribution = self.attribuer(
+            self.profil_validateur, self.admin
+        )
+        self.assertEqual(
+            attribution.profil_id,
+            self.profil_validateur.pk,
+        )
+
+    def test_auto_modification_refusee(self):
+        from django.core.exceptions import PermissionDenied
+        from .services.competences import modifier_competence
+
+        attribution = self.attribuer(
+            self.profil_validateur, self.admin
+        )
+
+        with self.assertRaises(PermissionDenied):
+            modifier_competence(
+                attribution_id=attribution.pk,
+                validateur_id=self.validateur.pk,
+                date_validation="2026-01-01",
+                date_expiration=None,
+            )
+
+    def test_auto_retrait_refuse(self):
+        from django.core.exceptions import PermissionDenied
+        from .services.competences import retirer_competence
+
+        attribution = self.attribuer(
+            self.profil_validateur, self.admin
+        )
+
+        with self.assertRaises(PermissionDenied):
+            retirer_competence(
+                attribution_id=attribution.pk,
+                validateur_id=self.validateur.pk,
+            )
+
+        self.assertTrue(
+            CompetenceAgent.objects.filter(
+                pk=attribution.pk
+            ).exists()
+        )

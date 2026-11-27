@@ -660,3 +660,147 @@ class ProtectionAdministrationReferentielsTests(TestCase):
                     reponse.status_code,
                     200,
                 )
+
+
+class AutorisationsMetierTests(TestCase):
+
+    def setUp(self):
+        User = get_user_model()
+
+        self.agent = User.objects.create(
+            username="000123",
+        )
+
+        self.autre_agent = User.objects.create(
+            username="000124",
+        )
+
+        self.gestionnaire = User.objects.create(
+            username="000125",
+        )
+
+        self.superutilisateur = User.objects.create(
+            username="administrateur",
+            is_staff=True,
+            is_superuser=True,
+        )
+
+        self.groupe, _ = Group.objects.get_or_create(
+            name="Administrateurs Dispo"
+        )
+
+        self.gestionnaire.groups.add(self.groupe)
+
+    def test_agent_non_administrateur(self):
+        from .autorisations import est_administrateur_dispo
+
+        self.assertFalse(
+            est_administrateur_dispo(self.agent)
+        )
+
+    def test_administrateur_dispo(self):
+        from .autorisations import est_administrateur_dispo
+
+        self.assertTrue(
+            est_administrateur_dispo(self.gestionnaire)
+        )
+
+    def test_superutilisateur(self):
+        from .autorisations import est_administrateur_dispo
+
+        self.assertTrue(
+            est_administrateur_dispo(self.superutilisateur)
+        )
+
+    def test_administrateur_inactif(self):
+        from .autorisations import est_administrateur_dispo
+
+        self.gestionnaire.is_active = False
+        self.gestionnaire.save(update_fields=["is_active"])
+
+        self.assertFalse(
+            est_administrateur_dispo(self.gestionnaire)
+        )
+
+    def test_anonyme_refuse(self):
+        from django.core.exceptions import PermissionDenied
+        from .autorisations import exiger_administrateur_dispo
+
+        with self.assertRaises(PermissionDenied):
+            exiger_administrateur_dispo(AnonymousUser())
+
+    def test_gestion_agent_ordinaire(self):
+        from .autorisations import exiger_gestion_compte
+
+        exiger_gestion_compte(
+            self.gestionnaire,
+            self.agent,
+        )
+
+    def test_gestion_par_agent_refusee(self):
+        from django.core.exceptions import PermissionDenied
+        from .autorisations import exiger_gestion_compte
+
+        with self.assertRaises(PermissionDenied):
+            exiger_gestion_compte(
+                self.agent,
+                self.autre_agent,
+            )
+
+    def test_autogestion_refusee(self):
+        from django.core.exceptions import PermissionDenied
+        from .autorisations import exiger_gestion_compte
+
+        with self.assertRaises(PermissionDenied):
+            exiger_gestion_compte(
+                self.gestionnaire,
+                self.gestionnaire,
+            )
+
+    def test_compte_technique_protege(self):
+        from django.core.exceptions import PermissionDenied
+        from .autorisations import exiger_gestion_compte
+
+        with self.assertRaises(PermissionDenied):
+            exiger_gestion_compte(
+                self.gestionnaire,
+                self.superutilisateur,
+            )
+
+    def test_administrateur_protege(self):
+        from django.core.exceptions import PermissionDenied
+        from .autorisations import exiger_gestion_compte
+
+        self.autre_agent.groups.add(self.groupe)
+
+        with self.assertRaises(PermissionDenied):
+            exiger_gestion_compte(
+                self.gestionnaire,
+                self.autre_agent,
+            )
+
+    def test_permission_directe_protegee(self):
+        from django.contrib.auth.models import Permission
+        from django.core.exceptions import PermissionDenied
+        from .autorisations import exiger_gestion_compte
+
+        permission = Permission.objects.get(
+            content_type__app_label="auth",
+            codename="change_user",
+        )
+
+        self.autre_agent.user_permissions.add(permission)
+
+        with self.assertRaises(PermissionDenied):
+            exiger_gestion_compte(
+                self.gestionnaire,
+                self.autre_agent,
+            )
+
+    def test_superutilisateur_gere_administrateur(self):
+        from .autorisations import exiger_gestion_compte
+
+        exiger_gestion_compte(
+            self.superutilisateur,
+            self.gestionnaire,
+        )

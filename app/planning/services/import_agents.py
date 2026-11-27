@@ -693,21 +693,11 @@ SIGNATURE_IMPORT = "planning.import_agents.v1"
 
 
 def verifier_autorisation_import(utilisateur_id):
-    from django.contrib.auth import get_user_model
-    from django.core.exceptions import PermissionDenied
-    from .agents import verifier_identifiant
+    from .agents import charger_auteur
+    from ..autorisations import exiger_superutilisateur
 
-    utilisateur_id = verifier_identifiant(utilisateur_id)
-
-    utilisateur = get_user_model().objects.filter(
-        pk=utilisateur_id,
-        is_active=True,
-    ).first()
-
-    if utilisateur is None or not utilisateur.is_superuser:
-        raise PermissionDenied(
-            "Vous ne disposez pas des droits d'import."
-        )
+    utilisateur = charger_auteur(utilisateur_id)
+    exiger_superutilisateur(utilisateur)
 
     return utilisateur
 
@@ -960,6 +950,7 @@ def executer_import_agents(
             for ligne in previsualisation["lignes"]:
                 if ligne["action"] == "creer":
                     profil = creer_agent(
+                        auteur_id=auteur.pk,
                         matricule=ligne["matricule"],
                         nom=ligne["nom"],
                         prenom=ligne["prenom"],
@@ -985,6 +976,7 @@ def executer_import_agents(
 
                 elif ligne["action"] == "rattacher":
                     profil = rattacher_profil_agent(
+                        auteur_id=auteur.pk,
                         utilisateur_id=ligne["utilisateur_id"],
                         grade_id=ligne["grade_id"],
                         telephone=ligne["telephone"],
@@ -992,6 +984,7 @@ def executer_import_agents(
                     )
 
                     profil = modifier_agent(
+                        auteur_id=auteur.pk,
                         profil_id=profil.pk,
                         nom=ligne["nom"],
                         prenom=ligne["prenom"],
@@ -1018,6 +1011,7 @@ def executer_import_agents(
                 else:
                     if ligne["changements"]:
                         profil = modifier_agent(
+                            auteur_id=auteur.pk,
                             profil_id=ligne["profil_id"],
                             nom=ligne["nom"],
                             prenom=ligne["prenom"],

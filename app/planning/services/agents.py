@@ -1,7 +1,13 @@
 from django.contrib.auth import get_user_model
-from django.core.exceptions import ValidationError
+from django.core.exceptions import ValidationError, PermissionDenied
 from django.db import IntegrityError, transaction
 
+from ..autorisations import (
+    exiger_administrateur_dispo,
+    exiger_superutilisateur,
+    exiger_permission,
+    exiger_gestion_compte,
+)
 from ..identites import (
     verifier_matricule_unique,
     verifier_email_unique,
@@ -36,12 +42,26 @@ def verifier_identifiant(valeur):
     return identifiant
 
 
+def charger_auteur(auteur_id):
+    auteur_id = verifier_identifiant(auteur_id)
+
+    auteur = get_user_model().objects.filter(
+        pk=auteur_id,
+        is_active=True,
+    ).first()
+
+    if auteur is None:
+        raise PermissionDenied("Auteur non autorise.")
+
+    return auteur
+
+
 def verifier_profil(grade_id, telephone, fonctions_ids, profil=None):
     telephone = str(telephone or "").strip()
 
     if len(telephone) > 30:
         raise ValidationError(
-            "Le numéro de téléphone est trop long."
+            "Le numero de telephone est trop long."
         )
 
     grade_id = verifier_identifiant(grade_id)
@@ -57,14 +77,15 @@ def verifier_profil(grade_id, telephone, fonctions_ids, profil=None):
             "Un grade actif est obligatoire."
         )
 
-    try:
-        fonctions_ids = {
-            verifier_identifiant(identifiant) for identifiant in fonctions_ids
-        }
-    except (TypeError, ValueError):
-        raise ValidationError(
-            "Identifiants de fonctions invalides."
-        )
+    if not isinstance(
+        fonctions_ids, (list, tuple, set, frozenset)
+    ):
+        raise ValidationError("Liste de fonctions invalide.")
+
+    fonctions_ids = {
+        verifier_identifiant(identifiant)
+        for identifiant in fonctions_ids
+    }
 
     fonctions = list(
         FonctionAgent.objects.filter(pk__in=fonctions_ids)
@@ -90,6 +111,7 @@ def verifier_profil(grade_id, telephone, fonctions_ids, profil=None):
 
 def creer_agent(
     *,
+    auteur_id,
     matricule,
     nom,
     prenom,
@@ -101,10 +123,19 @@ def creer_agent(
 ):
     try:
         with transaction.atomic():
+            auteur = charger_auteur(auteur_id)
+
+            exiger_administrateur_dispo(auteur)
+            exiger_permission(auteur, "auth.add_user")
+
+            if not isinstance(actif, bool):
+                raise ValidationError("Statut du compte invalide.")
+
             matricule = verifier_matricule_unique(matricule)
             email = verifier_email_unique(email)
             nom = normaliser_nom(nom)
             prenom = normaliser_prenom(prenom)
+
             grade, telephone, fonctions = verifier_profil(
                 grade_id, telephone, fonctions_ids
             )
@@ -132,12 +163,13 @@ def creer_agent(
 
     except IntegrityError as erreur:
         raise ValidationError(
-            "Impossible de créer cet agent : conflit de données."
+            "Impossible de creer cet agent : conflit de donnees."
         ) from erreur
 
 
 def modifier_agent(
     *,
+    auteur_id,
     profil_id,
     nom,
     prenom,
@@ -147,6 +179,11 @@ def modifier_agent(
 ):
     try:
         with transaction.atomic():
+            auteur = charger_auteur(auteur_id)
+
+            exiger_administrateur_dispo(auteur)
+            exiger_permission(auteur, "auth.change_user")
+
             profil_id = verifier_identifiant(profil_id)
 
             profil = ProfilAgent.objects.select_related(
@@ -158,15 +195,21 @@ def modifier_agent(
                     "Ce profil agent n'existe pas."
                 )
 
+            exiger_gestion_compte(
+                auteur, profil.utilisateur
+            )
+
             nom = normaliser_nom(nom)
             prenom = normaliser_prenom(prenom)
 
             grade, telephone, fonctions = verifier_profil(
-                grade_id, telephone, fonctions_ids, profil=profil
+                grade_id,
+                telephone,
+                fonctions_ids,
+                profil=profil,
             )
 
             utilisateur = profil.utilisateur
-
             utilisateur.last_name = nom
             utilisateur.first_name = prenom
 
@@ -187,12 +230,13 @@ def modifier_agent(
 
     except IntegrityError as erreur:
         raise ValidationError(
-            "Impossible de modifier cet agent : conflit de données."
+            "Impossible de modifier cet agent : conflit de donnees."
         ) from erreur
 
 
 def rattacher_profil_agent(
     *,
+    auteur_id,
     utilisateur_id,
     grade_id,
     telephone="",
@@ -200,7 +244,13 @@ def rattacher_profil_agent(
 ):
     try:
         with transaction.atomic():
-            utilisateur_id = verifier_identifiant(utilisateur_id)
+            auteur = charger_auteur(auteur_id)
+
+            exiger_superutilisateur(auteur)
+
+            utilisateur_id = verifier_identifiant(
+                utilisateur_id
+            )
 
             utilisateur = get_user_model().objects.filter(
                 pk=utilisateur_id
@@ -215,13 +265,15 @@ def rattacher_profil_agent(
                 utilisateur=utilisateur
             ).exists():
                 raise ValidationError(
-                    "Ce compte possède déjà un profil agent."
+                    "Ce compte possede deja un profil agent."
                 )
 
             if utilisateur.is_superuser or utilisateur.is_staff:
                 raise ValidationError(
-                    "Ce compte privilégié nécessite un traitement spécifique."
+                    "Ce compte privilegie necessite un traitement specifique."
                 )
+
+            exiger_gestion_compte(auteur, utilisateur)
 
             verifier_matricule_unique(
                 utilisateur.username, utilisateur.pk
@@ -250,5 +302,5 @@ def rattacher_profil_agent(
 
     except IntegrityError as erreur:
         raise ValidationError(
-            "Impossible de rattacher le profil : conflit de données."
+            "Impossible de rattacher le profil : conflit de donnees."
         ) from erreur
