@@ -11,7 +11,32 @@ from ..identites import (
 from ..models import Grade, ProfilAgent, FonctionAgent
 
 
-def verifier_profil(grade_id, telephone, fonctions_ids):
+def verifier_identifiant(valeur):
+    if isinstance(valeur, bool):
+        raise ValidationError("Identifiant invalide.")
+
+    if isinstance(valeur, int):
+        identifiant = valeur
+    elif isinstance(valeur, str):
+        valeur = valeur.strip()
+
+        if not valeur.isascii() or not valeur.isdigit():
+            raise ValidationError("Identifiant invalide.")
+
+        if len(valeur) > 19:
+            raise ValidationError("Identifiant invalide.")
+
+        identifiant = int(valeur)
+    else:
+        raise ValidationError("Identifiant invalide.")
+
+    if not 0 < identifiant <= 9223372036854775807:
+        raise ValidationError("Identifiant invalide.")
+
+    return identifiant
+
+
+def verifier_profil(grade_id, telephone, fonctions_ids, profil=None):
     telephone = str(telephone or "").strip()
 
     if len(telephone) > 30:
@@ -19,10 +44,13 @@ def verifier_profil(grade_id, telephone, fonctions_ids):
             "Le numéro de téléphone est trop long."
         )
 
-    grade = Grade.objects.filter(
-        pk=grade_id,
-        active=True,
-    ).first()
+    grade_id = verifier_identifiant(grade_id)
+
+    grade = Grade.objects.filter(pk=grade_id).first()
+
+    if grade is not None and not grade.active:
+        if profil is None or profil.grade_id != grade.pk:
+            grade = None
 
     if grade is None:
         raise ValidationError(
@@ -31,7 +59,7 @@ def verifier_profil(grade_id, telephone, fonctions_ids):
 
     try:
         fonctions_ids = {
-            int(identifiant) for identifiant in fonctions_ids
+            verifier_identifiant(identifiant) for identifiant in fonctions_ids
         }
     except (TypeError, ValueError):
         raise ValidationError(
@@ -39,11 +67,18 @@ def verifier_profil(grade_id, telephone, fonctions_ids):
         )
 
     fonctions = list(
-        FonctionAgent.objects.filter(
-            pk__in=fonctions_ids,
-            active=True,
-        )
+        FonctionAgent.objects.filter(pk__in=fonctions_ids)
     )
+
+    anciennes_fonctions = (
+        set(profil.fonctions.values_list("pk", flat=True))
+        if profil is not None else set()
+    )
+
+    fonctions = [
+        fonction for fonction in fonctions
+        if fonction.active or fonction.pk in anciennes_fonctions
+    ]
 
     if len(fonctions) != len(fonctions_ids):
         raise ValidationError(
@@ -98,4 +133,59 @@ def creer_agent(
     except IntegrityError as erreur:
         raise ValidationError(
             "Impossible de créer cet agent : conflit de données."
+        ) from erreur
+
+
+def modifier_agent(
+    *,
+    profil_id,
+    nom,
+    prenom,
+    grade_id,
+    telephone,
+    fonctions_ids,
+):
+    try:
+        with transaction.atomic():
+            profil_id = verifier_identifiant(profil_id)
+
+            profil = ProfilAgent.objects.select_related(
+                "utilisateur"
+            ).filter(pk=profil_id).first()
+
+            if profil is None:
+                raise ValidationError(
+                    "Ce profil agent n'existe pas."
+                )
+
+            nom = normaliser_nom(nom)
+            prenom = normaliser_prenom(prenom)
+
+            grade, telephone, fonctions = verifier_profil(
+                grade_id, telephone, fonctions_ids, profil=profil
+            )
+
+            utilisateur = profil.utilisateur
+
+            utilisateur.last_name = nom
+            utilisateur.first_name = prenom
+
+            utilisateur.save(
+                update_fields=["last_name", "first_name"]
+            )
+
+            profil.grade = grade
+            profil.telephone = telephone
+
+            profil.save(
+                update_fields=["grade", "telephone"]
+            )
+
+            profil.fonctions.set(fonctions)
+
+            return profil
+
+    except IntegrityError as erreur:
+        raise ValidationError(
+            "Impossible de modifier cet agent : conflit de données."
         ) from erreur

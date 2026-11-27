@@ -149,3 +149,216 @@ class CreationAgentTests(TestCase):
         )
 
         self.assertEqual(profil.fonctions.count(), 1)
+
+
+class ModificationAgentTests(TestCase):
+
+    def setUp(self):
+        from .models import FonctionAgent
+
+        self.grade = Grade.objects.get(code="SAP1")
+        self.nouveau_grade = Grade.objects.get(code="CPL")
+
+        self.fonction = FonctionAgent.objects.create(
+            nom="Responsable matériel"
+        )
+
+        self.profil = creer_agent(
+            matricule="000123",
+            nom="Dupont",
+            prenom="Jean",
+            email="jean.dupont@example.com",
+            grade_id=self.grade.pk,
+        )
+
+        self.donnees = {
+            "profil_id": self.profil.pk,
+            "nom": "Durand",
+            "prenom": "Jean-Pierre",
+            "grade_id": self.nouveau_grade.pk,
+            "telephone": "0600000000",
+            "fonctions_ids": [self.fonction.pk],
+        }
+
+    def test_modification(self):
+        from .services.agents import modifier_agent
+
+        profil = modifier_agent(**self.donnees)
+
+        self.assertEqual(profil.utilisateur.last_name, "Durand")
+        self.assertEqual(profil.utilisateur.first_name, "Jean-Pierre")
+        self.assertEqual(profil.grade, self.nouveau_grade)
+        self.assertEqual(profil.telephone, "0600000000")
+        self.assertEqual(profil.fonctions.count(), 1)
+        self.assertEqual(profil.pk, self.profil.pk)
+
+    def test_preservation_du_compte(self):
+        from .services.agents import modifier_agent
+        from django.contrib.auth.models import Group
+
+        compte = self.profil.utilisateur
+        compte.set_password("MotDePasseFictif123!")
+        compte.save(update_fields=["password"])
+
+        groupe = Group.objects.create(name="Groupe fictif")
+        compte.groups.add(groupe)
+
+        mot_de_passe = compte.password
+
+        modifier_agent(**self.donnees)
+        compte.refresh_from_db()
+
+        self.assertEqual(compte.username, "000123")
+        self.assertEqual(compte.email, "jean.dupont@example.com")
+        self.assertEqual(compte.password, mot_de_passe)
+        self.assertTrue(compte.is_active)
+        self.assertFalse(compte.is_staff)
+        self.assertFalse(compte.is_superuser)
+        self.assertTrue(compte.groups.filter(pk=groupe.pk).exists())
+
+    def test_preservation_des_donnees_operationnelles(self):
+        from datetime import timedelta
+        from django.utils import timezone
+        from .models import Competence, CompetenceAgent, Disponibilite
+        from .services.agents import modifier_agent
+
+        competence = Competence.objects.get(code="cod1")
+
+        attribution = CompetenceAgent.objects.create(
+            profil=self.profil,
+            competence=competence,
+        )
+
+        debut = timezone.now()
+
+        disponibilite = Disponibilite.objects.create(
+            profil=self.profil,
+            debut=debut,
+            fin=debut + timedelta(hours=9),
+        )
+
+        modifier_agent(**self.donnees)
+
+        attribution.refresh_from_db()
+        disponibilite.refresh_from_db()
+
+        self.assertEqual(attribution.profil_id, self.profil.pk)
+        self.assertEqual(disponibilite.profil_id, self.profil.pk)
+        self.assertEqual(CompetenceAgent.objects.count(), 1)
+        self.assertEqual(Disponibilite.objects.count(), 1)
+
+    def test_profil_inexistant(self):
+        from .services.agents import modifier_agent
+
+        self.donnees["profil_id"] = 999999
+
+        with self.assertRaises(ValidationError):
+            modifier_agent(**self.donnees)
+
+    def test_grade_invalide(self):
+        from .services.agents import modifier_agent
+
+        self.donnees["grade_id"] = None
+
+        with self.assertRaises(ValidationError):
+            modifier_agent(**self.donnees)
+
+        self.profil.utilisateur.refresh_from_db()
+        self.assertEqual(self.profil.utilisateur.last_name, "Dupont")
+
+    def test_annulation_transaction(self):
+        from .services.agents import modifier_agent
+
+        with patch(
+            "planning.services.agents.ProfilAgent.save",
+            side_effect=IntegrityError("Erreur simulee"),
+        ):
+            with self.assertRaises(ValidationError):
+                modifier_agent(**self.donnees)
+
+        self.profil.refresh_from_db()
+
+        self.assertEqual(self.profil.utilisateur.last_name, "Dupont")
+        self.assertEqual(self.profil.grade, self.grade)
+        self.assertEqual(self.profil.telephone, "")
+        self.assertFalse(self.profil.fonctions.exists())
+
+    def test_conservation_grade_inactif(self):
+        from .services.agents import modifier_agent
+
+        self.grade.active = False
+        self.grade.save(update_fields=["active"])
+
+        self.donnees["grade_id"] = self.grade.pk
+
+        profil = modifier_agent(**self.donnees)
+
+        self.assertEqual(profil.grade_id, self.grade.pk)
+
+    def test_nouveau_grade_inactif_refuse(self):
+        from .services.agents import modifier_agent
+
+        self.nouveau_grade.active = False
+        self.nouveau_grade.save(update_fields=["active"])
+
+        with self.assertRaises(ValidationError):
+            modifier_agent(**self.donnees)
+
+    def test_conservation_fonction_inactive(self):
+        from .services.agents import modifier_agent
+
+        self.profil.fonctions.add(self.fonction)
+
+        self.fonction.active = False
+        self.fonction.save(update_fields=["active"])
+
+        profil = modifier_agent(**self.donnees)
+
+        self.assertTrue(
+            profil.fonctions.filter(pk=self.fonction.pk).exists()
+        )
+
+    def test_nouvelle_fonction_inactive_refusee(self):
+        from .services.agents import modifier_agent
+
+        self.fonction.active = False
+        self.fonction.save(update_fields=["active"])
+
+        with self.assertRaises(ValidationError):
+            modifier_agent(**self.donnees)
+
+    def test_retrait_fonction_inactive(self):
+        from .services.agents import modifier_agent
+
+        self.profil.fonctions.add(self.fonction)
+
+        self.fonction.active = False
+        self.fonction.save(update_fields=["active"])
+
+        self.donnees["fonctions_ids"] = []
+
+        profil = modifier_agent(**self.donnees)
+
+        self.assertFalse(profil.fonctions.exists())
+
+
+class ValidationIdentifiantsTests(TestCase):
+
+    def test_identifiants_valides(self):
+        from .services.agents import verifier_identifiant
+
+        for valeur in (1, "1", " 1 ", "001"):
+            with self.subTest(valeur=valeur):
+                self.assertEqual(verifier_identifiant(valeur), 1)
+
+    def test_identifiants_invalides(self):
+        from .services.agents import verifier_identifiant
+
+        for valeur in (
+            None, True, False, 0, -1,
+            1.5, 1.0, "", "abc", "1.5",
+            "-1", "１２３", 2**63,
+        ):
+            with self.subTest(valeur=valeur):
+                with self.assertRaises(ValidationError):
+                    verifier_identifiant(valeur)
