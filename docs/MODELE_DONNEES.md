@@ -103,4 +103,3 @@ Les tests existants restent conservés.
 - Communications internes.
 - Gestion des stocks et de la pharmacie.
 - Inventaires des véhicules et des matériels.
-

@@ -2,13 +2,10 @@ from django.views.decorators.clickjacking import xframe_options_sameorigin
 from django.contrib.auth.decorators import login_required
 from django.shortcuts import render, redirect, get_object_or_404
 from django.http import JsonResponse
-from .couverture import alertes_ssuap
 from .forms import DisponibiliteForm, CopieJourneeForm
 from .models import Disponibilite
 from datetime import date, datetime, time, timedelta
-from .incendie import alertes_inc
 from django.utils import timezone
-from .synthese import synthese_gardes
 from django.contrib import messages
 from .copie import copier_journee
 
@@ -231,21 +228,6 @@ def planning_hebdomadaire(request):
         # Calcul des alertes SSUAP sur la semaine affichée.
         # On prolonge jusqu'au lundi suivant à 6 h
         # pour inclure la fin de la garde du week-end.
-    debut_analyse = timezone.make_aware(
-        datetime.combine(lundi, time.min)
-    )
-
-    fin_analyse = timezone.make_aware(
-        datetime.combine(
-            lundi + timedelta(days=7),
-            time(hour=6),
-        )
-    )
-
-    alertes = alertes_ssuap(debut_analyse, fin_analyse)
-    alertes_incendie = alertes_inc(debut_analyse, fin_analyse)
-    gardes = synthese_gardes(debut_analyse, fin_analyse)
-
     return render(
         request,
         "planning/planning_hebdomadaire.html",
@@ -259,9 +241,7 @@ def planning_hebdomadaire(request):
             "semaine_suivante": (
                 lundi + timedelta(days=7)
             ).isoformat(),
-            "alertes_ssuap": alertes,
-            "alertes_inc": alertes_incendie,
-            "synthese_gardes": gardes,
+            "couverture_active": False,
         },
     )
 
@@ -341,35 +321,12 @@ def couverture_ssuap_calendrier(request):
             status=400,
         )
 
-    fuseau = timezone.get_current_timezone()
-    debut = timezone.make_aware(
-        datetime.combine(debut_jour, time.min), fuseau
-    )
-    fin = timezone.make_aware(
-        datetime.combine(fin_jour, time.min), fuseau
-    )
+    resultats = {
+        (debut_jour + timedelta(days=index)).isoformat(): "non_evalue"
+        for index in range(nombre_jours)
+    }
 
-    alertes = alertes_ssuap(debut, fin)
-
-    jours_rouges = set()
-
-    for alerte in alertes:
-        jour = timezone.localtime(alerte["debut"], fuseau).date()
-        dernier = timezone.localtime(
-            alerte["fin"] - timedelta(microseconds=1), fuseau
-        ).date()
-
-        while jour <= dernier:
-            jours_rouges.add(jour.isoformat())
-            jour += timedelta(days=1)
-
-    resultats = {}
-
-    for index in range(nombre_jours):
-        jour = debut_jour + timedelta(days=index)
-        cle = jour.isoformat()
-        resultats[cle] = (
-            "rouge" if cle in jours_rouges else "vert"
-        )
-
-    return JsonResponse({"jours": resultats})
+    return JsonResponse({
+        "jours": resultats,
+        "couverture_active": False,
+    })

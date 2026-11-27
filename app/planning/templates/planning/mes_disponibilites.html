@@ -577,62 +577,7 @@
                     month: "Mois"
                 },
 
-                datesSet: function (info) {
-                   const debut = info.startStr.slice(0, 10);
-                   const fin = info.endStr.slice(0, 10);
-
-                   const url = new URL(
-                       "{% url 'couverture_ssuap_calendrier' %}",
-                       window.location.origin
-                   );
-                   url.searchParams.set("debut", debut);
-                   url.searchParams.set("fin", fin);
-
-                   fetch(url)
-                       .then(reponse => {
-                           if (!reponse.ok) {
-                               throw new Error("Erreur couverture SSUAP");
-                           }
-                           return reponse.json();
-                       })
-                       .then(donnees => {
-                           document.querySelectorAll(
-                               ".marqueur-ssuap"
-                           ).forEach(point => point.remove());
-
-                           document.querySelectorAll(
-                               ".fc-daygrid-day[data-date]"
-                           ).forEach(cellule => {
-                               const date = cellule.dataset.date;
-                               const etat = donnees.jours[date];
-
-                               if (!etat) return;
-
-                               const numero = cellule.querySelector(
-                                   ".fc-daygrid-day-number"
-                               );
-                               if (!numero) return;
-
-                               const point = document.createElement("span");
-                               point.className = "marqueur-ssuap";
-                               point.style.cssText =
-                                   "display:inline-block;" +
-                                   "width:9px;height:9px;" +
-                                   "border-radius:50%;" +
-                                   "margin-left:5px;" +
-                                   "background:" +
-                                   (etat === "rouge" ? "#dc2626" : "#16a34a");
-                               point.title = etat === "rouge"
-                                   ? "SSUAP : effectif insuffisant"
-                                   : "SSUAP : effectif suffisant";
-
-                               numero.appendChild(point);
-                           });
-                       })
-                       .catch(erreur => console.error(erreur));
-               },
-
-               events: evenements,
+                events: evenements,
 
                 dateClick: function (info) {
                     ouvrirAjout(info.dateStr, info.allDay);
