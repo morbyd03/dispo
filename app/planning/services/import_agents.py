@@ -889,3 +889,193 @@ def consommer_confirmation_import(
         raise ValidationError(
             "Impossible de consommer cette confirmation."
         ) from erreur
+
+
+def executer_import_agents(
+    *,
+    contenu,
+    utilisateur_id,
+    jeton,
+    modele_email=None,
+    confirmer_retraits=False,
+):
+    from django.db import IntegrityError, transaction
+
+    from .agents import (
+        creer_agent,
+        modifier_agent,
+        rattacher_profil_agent,
+    )
+    from .competences import (
+        attribuer_competence,
+        retirer_competence,
+    )
+    from .journal import journaliser
+
+    try:
+        with transaction.atomic():
+            auteur = verifier_autorisation_import(
+                utilisateur_id
+            )
+
+            previsualisation = consommer_confirmation_import(
+                contenu=contenu,
+                utilisateur_id=auteur.pk,
+                jeton=jeton,
+                modele_email=modele_email,
+            )
+
+            for ligne in previsualisation["lignes"]:
+                if ligne["action"] not in (
+                    "creer", "modifier", "rattacher"
+                ):
+                    raise ValidationError(
+                        "Action d'import inconnue."
+                    )
+
+                if ligne["changement_email"]:
+                    raise ValidationError(
+                        "Un changement d'adresse e-mail nécessite "
+                        "une procédure distincte."
+                    )
+
+                if (
+                    ligne["confirmation_retraits"]
+                    and confirmer_retraits is not True
+                ):
+                    raise ValidationError(
+                        "Les retraits de qualifications nécessitent "
+                        "une confirmation spécifique."
+                    )
+
+            bilan = {
+                "creations": 0,
+                "rattachements": 0,
+                "modifications": 0,
+                "inchanges": 0,
+                "qualifications_attribuees": 0,
+                "qualifications_retirees": 0,
+            }
+
+            for ligne in previsualisation["lignes"]:
+                if ligne["action"] == "creer":
+                    profil = creer_agent(
+                        matricule=ligne["matricule"],
+                        nom=ligne["nom"],
+                        prenom=ligne["prenom"],
+                        email=ligne["email"],
+                        grade_id=ligne["grade_id"],
+                        telephone=ligne["telephone"],
+                        fonctions_ids=ligne["fonctions_ids"],
+                        actif=True,
+                    )
+
+                    journaliser(
+                        auteur=auteur,
+                        action="agent.importer",
+                        objet=profil,
+                        details={
+                            "origine": "csv",
+                            "operation": "creer",
+                            "grade_id": profil.grade_id,
+                        },
+                    )
+
+                    bilan["creations"] += 1
+
+                elif ligne["action"] == "rattacher":
+                    profil = rattacher_profil_agent(
+                        utilisateur_id=ligne["utilisateur_id"],
+                        grade_id=ligne["grade_id"],
+                        telephone=ligne["telephone"],
+                        fonctions_ids=ligne["fonctions_ids"],
+                    )
+
+                    profil = modifier_agent(
+                        profil_id=profil.pk,
+                        nom=ligne["nom"],
+                        prenom=ligne["prenom"],
+                        grade_id=ligne["grade_id"],
+                        telephone=ligne["telephone"],
+                        fonctions_ids=ligne["fonctions_ids"],
+                    )
+
+                    journaliser(
+                        auteur=auteur,
+                        action="agent.importer",
+                        objet=profil,
+                        details={
+                            "origine": "csv",
+                            "operation": "rattacher",
+                            "utilisateur_id": ligne["utilisateur_id"],
+                            "grade_id": profil.grade_id,
+                            "changements": ligne["changements"],
+                        },
+                    )
+
+                    bilan["rattachements"] += 1
+
+                else:
+                    if ligne["changements"]:
+                        profil = modifier_agent(
+                            profil_id=ligne["profil_id"],
+                            nom=ligne["nom"],
+                            prenom=ligne["prenom"],
+                            grade_id=ligne["grade_id"],
+                            telephone=ligne["telephone"],
+                            fonctions_ids=ligne["fonctions_ids"],
+                        )
+
+                        journaliser(
+                            auteur=auteur,
+                            action="agent.importer",
+                            objet=profil,
+                            details={
+                                "origine": "csv",
+                                "operation": "modifier",
+                                "changements": ligne["changements"],
+                            },
+                        )
+
+                        bilan["modifications"] += 1
+
+                    else:
+                        from ..models import ProfilAgent
+
+                        profil = ProfilAgent.objects.get(
+                            pk=ligne["profil_id"]
+                        )
+
+                        if not ligne["operations_qualifications"]:
+                            bilan["inchanges"] += 1
+
+
+                for operation in ligne["operations_qualifications"]:
+                    if operation["action"] == "attribuer":
+                        attribuer_competence(
+                            profil_id=profil.pk,
+                            competence_id=operation["competence_id"],
+                            validateur_id=auteur.pk,
+                        )
+
+                        bilan["qualifications_attribuees"] += 1
+
+                    elif operation["action"] == "retirer":
+                        retirer_competence(
+                            attribution_id=operation["attribution_id"],
+                            validateur_id=auteur.pk,
+                        )
+
+                        bilan["qualifications_retirees"] += 1
+
+                    else:
+                        raise ValidationError(
+                            "Operation de qualification inattendue."
+                        )
+
+            return bilan
+
+    except IntegrityError as erreur:
+        raise ValidationError(
+            "L'import a été annulé en raison d'un conflit de données."
+        ) from erreur
