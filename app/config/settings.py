@@ -82,7 +82,7 @@ CSRF_COOKIE_SECURE = DISPO_HTTPS
 # Application definition
 
 INSTALLED_APPS = [
-    "django.contrib.admin",
+    "config.admin_apps.AdministrationTechniqueConfig",
     "django.contrib.auth",
     "django.contrib.contenttypes",
     "django.contrib.sessions",

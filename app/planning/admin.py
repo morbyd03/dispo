@@ -9,22 +9,47 @@ from .models import (
 )
 
 
+class AdministrationLectureSeule(admin.ModelAdmin):
+
+    actions = None
+
+    def has_add_permission(self, request):
+        return False
+
+    def has_change_permission(self, request, obj=None):
+        return False
+
+    def has_delete_permission(self, request, obj=None):
+        return False
+
+
+class AdministrationReferentiel(admin.ModelAdmin):
+
+    actions = None
+
+    def has_delete_permission(self, request, obj=None):
+        return False
+
+
 @admin.register(Grade)
-class GradeAdmin(admin.ModelAdmin):
+class GradeAdmin(AdministrationReferentiel):
     list_display = ("code", "nom", "ordre", "active")
     list_filter = ("active",)
     search_fields = ("code", "nom")
 
+    def get_readonly_fields(self, request, obj=None):
+        return ("code",) if obj else ()
+
 
 @admin.register(FonctionAgent)
-class FonctionAgentAdmin(admin.ModelAdmin):
+class FonctionAgentAdmin(AdministrationReferentiel):
     list_display = ("nom", "active")
     list_filter = ("active",)
     search_fields = ("nom",)
 
 
 @admin.register(ProfilAgent)
-class ProfilAgentAdmin(admin.ModelAdmin):
+class ProfilAgentAdmin(AdministrationLectureSeule):
     list_display = ("utilisateur", "grade", "telephone")
     list_filter = ("grade", "fonctions")
     search_fields = (
@@ -38,7 +63,7 @@ class ProfilAgentAdmin(admin.ModelAdmin):
 
 
 @admin.register(Competence)
-class CompetenceAdmin(admin.ModelAdmin):
+class CompetenceAdmin(AdministrationReferentiel):
     list_display = ("code", "nom", "categorie", "active")
     list_filter = ("categorie", "active")
     search_fields = ("code", "nom", "description")
@@ -48,7 +73,7 @@ class CompetenceAdmin(admin.ModelAdmin):
 
 
 @admin.register(CompetenceAgent)
-class CompetenceAgentAdmin(admin.ModelAdmin):
+class CompetenceAgentAdmin(AdministrationLectureSeule):
     list_display = (
         "profil",
         "competence",
@@ -65,23 +90,13 @@ class CompetenceAgentAdmin(admin.ModelAdmin):
     autocomplete_fields = ("profil", "competence")
     readonly_fields = ("valide_par",)
 
-    actions = None
-
-    def has_add_permission(self, request):
-        return False
-
-    def has_change_permission(self, request, obj=None):
-        return False
-
-    def has_delete_permission(self, request, obj=None):
-        return False
 
 
 from .models import JournalAction
 
 
 @admin.register(JournalAction)
-class JournalActionAdmin(admin.ModelAdmin):
+class JournalActionAdmin(AdministrationLectureSeule):
     list_display = (
         "date_action",
         "auteur",
@@ -114,7 +129,6 @@ class JournalActionAdmin(admin.ModelAdmin):
     list_select_related = ("auteur",)
     date_hierarchy = "date_action"
     list_per_page = 50
-    actions = None
 
     def has_view_permission(self, request, obj=None):
         return (
@@ -122,11 +136,46 @@ class JournalActionAdmin(admin.ModelAdmin):
             and request.user.is_superuser
         )
 
-    def has_add_permission(self, request):
-        return False
 
-    def has_change_permission(self, request, obj=None):
-        return False
+from django.contrib.auth import get_user_model
+from django.contrib.auth.admin import UserAdmin
+
+
+class UtilisateurTechniqueAdmin(UserAdmin):
+
+    actions = None
 
     def has_delete_permission(self, request, obj=None):
         return False
+
+    def has_change_permission(self, request, obj=None):
+        if obj is not None:
+            if ProfilAgent.objects.filter(
+                utilisateur_id=obj.pk
+            ).exists():
+                return False
+
+        return super().has_change_permission(request, obj)
+
+    def user_change_password(self, request, id, form_url=""):
+        from django.core.exceptions import PermissionDenied
+
+        if ProfilAgent.objects.filter(
+            utilisateur_id=id
+        ).exists():
+            raise PermissionDenied(
+                "Les mots de passe des agents doivent etre "
+                "geres par les procedures dediees."
+            )
+
+        return super().user_change_password(
+            request, id, form_url
+        )
+
+
+admin.site.unregister(get_user_model())
+
+admin.site.register(
+    get_user_model(),
+    UtilisateurTechniqueAdmin,
+)
