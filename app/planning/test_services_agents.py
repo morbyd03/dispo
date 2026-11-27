@@ -362,3 +362,134 @@ class ValidationIdentifiantsTests(TestCase):
             with self.subTest(valeur=valeur):
                 with self.assertRaises(ValidationError):
                     verifier_identifiant(valeur)
+
+
+class RattachementProfilTests(TestCase):
+
+    def setUp(self):
+        self.grade = Grade.objects.get(code="SAP1")
+
+        self.compte = get_user_model().objects.create_user(
+            username="000123",
+            first_name="Jean",
+            last_name="Dupont",
+            email="jean.dupont@example.com",
+            password="MotDePasseFictif123!",
+        )
+
+        self.donnees = {
+            "utilisateur_id": self.compte.pk,
+            "grade_id": self.grade.pk,
+        }
+
+    def test_rattachement(self):
+        from .services.agents import rattacher_profil_agent
+
+        profil = rattacher_profil_agent(**self.donnees)
+
+        self.assertEqual(profil.utilisateur_id, self.compte.pk)
+        self.assertEqual(profil.grade, self.grade)
+        self.assertEqual(get_user_model().objects.count(), 1)
+        self.assertEqual(ProfilAgent.objects.count(), 1)
+
+    def test_preservation_compte(self):
+        from .services.agents import rattacher_profil_agent
+        from django.contrib.auth.models import Group
+
+        groupe = Group.objects.create(name="Groupe fictif")
+        self.compte.groups.add(groupe)
+
+        mot_de_passe = self.compte.password
+
+        rattacher_profil_agent(**self.donnees)
+
+        self.compte.refresh_from_db()
+
+        self.assertEqual(self.compte.password, mot_de_passe)
+        self.assertEqual(self.compte.username, "000123")
+        self.assertTrue(self.compte.is_active)
+        self.assertTrue(self.compte.groups.filter(pk=groupe.pk).exists())
+
+    def test_profil_deja_existant(self):
+        from .services.agents import rattacher_profil_agent
+
+        rattacher_profil_agent(**self.donnees)
+
+        with self.assertRaises(ValidationError):
+            rattacher_profil_agent(**self.donnees)
+
+        self.assertEqual(ProfilAgent.objects.count(), 1)
+
+    def test_compte_inexistant(self):
+        from .services.agents import rattacher_profil_agent
+
+        self.donnees["utilisateur_id"] = 999999
+
+        with self.assertRaises(ValidationError):
+            rattacher_profil_agent(**self.donnees)
+
+    def test_compte_privilegie(self):
+        from .services.agents import rattacher_profil_agent
+
+        self.compte.is_superuser = True
+        self.compte.save(update_fields=["is_superuser"])
+
+        with self.assertRaises(ValidationError):
+            rattacher_profil_agent(**self.donnees)
+
+        self.assertFalse(ProfilAgent.objects.exists())
+
+    def test_identite_incomplete(self):
+        from .services.agents import rattacher_profil_agent
+
+        self.compte.email = ""
+        self.compte.save(update_fields=["email"])
+
+        with self.assertRaises(ValidationError):
+            rattacher_profil_agent(**self.donnees)
+
+        self.assertFalse(ProfilAgent.objects.exists())
+
+    def test_grade_obligatoire(self):
+        from .services.agents import rattacher_profil_agent
+
+        self.donnees["grade_id"] = None
+
+        with self.assertRaises(ValidationError):
+            rattacher_profil_agent(**self.donnees)
+
+        self.assertFalse(ProfilAgent.objects.exists())
+
+    def test_preservation_compte_inactif(self):
+        from .services.agents import rattacher_profil_agent
+
+        self.compte.is_active = False
+        self.compte.save(update_fields=["is_active"])
+
+        profil = rattacher_profil_agent(**self.donnees)
+
+        self.assertFalse(profil.utilisateur.is_active)
+
+    def test_compte_staff_refuse(self):
+        from .services.agents import rattacher_profil_agent
+
+        self.compte.is_staff = True
+        self.compte.save(update_fields=["is_staff"])
+
+        with self.assertRaises(ValidationError):
+            rattacher_profil_agent(**self.donnees)
+
+        self.assertFalse(ProfilAgent.objects.exists())
+
+    def test_annulation_rattachement(self):
+        from .services.agents import rattacher_profil_agent
+
+        with patch(
+            "planning.services.agents.ProfilAgent.objects.create",
+            side_effect=IntegrityError("Erreur simulee"),
+        ):
+            with self.assertRaises(ValidationError):
+                rattacher_profil_agent(**self.donnees)
+
+        self.assertEqual(get_user_model().objects.count(), 1)
+        self.assertFalse(ProfilAgent.objects.exists())

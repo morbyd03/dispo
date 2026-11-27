@@ -189,3 +189,66 @@ def modifier_agent(
         raise ValidationError(
             "Impossible de modifier cet agent : conflit de données."
         ) from erreur
+
+
+def rattacher_profil_agent(
+    *,
+    utilisateur_id,
+    grade_id,
+    telephone="",
+    fonctions_ids=(),
+):
+    try:
+        with transaction.atomic():
+            utilisateur_id = verifier_identifiant(utilisateur_id)
+
+            utilisateur = get_user_model().objects.filter(
+                pk=utilisateur_id
+            ).first()
+
+            if utilisateur is None:
+                raise ValidationError(
+                    "Ce compte utilisateur n'existe pas."
+                )
+
+            if ProfilAgent.objects.filter(
+                utilisateur=utilisateur
+            ).exists():
+                raise ValidationError(
+                    "Ce compte possède déjà un profil agent."
+                )
+
+            if utilisateur.is_superuser or utilisateur.is_staff:
+                raise ValidationError(
+                    "Ce compte privilégié nécessite un traitement spécifique."
+                )
+
+            verifier_matricule_unique(
+                utilisateur.username, utilisateur.pk
+            )
+
+            verifier_email_unique(
+                utilisateur.email, utilisateur.pk
+            )
+
+            normaliser_nom(utilisateur.last_name)
+            normaliser_prenom(utilisateur.first_name)
+
+            grade, telephone, fonctions = verifier_profil(
+                grade_id, telephone, fonctions_ids
+            )
+
+            profil = ProfilAgent.objects.create(
+                utilisateur=utilisateur,
+                grade=grade,
+                telephone=telephone,
+            )
+
+            profil.fonctions.set(fonctions)
+
+            return profil
+
+    except IntegrityError as erreur:
+        raise ValidationError(
+            "Impossible de rattacher le profil : conflit de données."
+        ) from erreur
