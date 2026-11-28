@@ -199,3 +199,78 @@ consolider dans la documentation du projet.
 
 Projet développé avec la collaboration de ChatGPT (OpenAI).
 La contribution de Codex sera également documentée.
+
+## Configuration locale réalisée le 28 novembre 2026
+
+Environnement AsthePC :
+
+- Fedora Linux 44 KDE Plasma.
+- AMD Ryzen 7 9800X3D.
+- 32 Go de mémoire vive.
+- Docker 29.10.0.
+- Docker Compose 5.8.0.
+- Codex CLI 0.172.0.
+- Authentification Codex avec ChatGPT.
+- Authentification GitHub via GitHub CLI et HTTPS.
+- Dépôt local : ~/Projets/dispo.
+- Projet Docker : dispo-local.
+- Image Docker : dispo-local-web.
+- Application : http://localhost:18000.
+- Base de données locale indépendante.
+- Superutilisateur local créé.
+- Connexion à Dispo vérifiée.
+- SELinux actif en mode Enforcing.
+- Configuration privée ignorée par Git.
+
+### Validation locale
+
+Suite globale reproduite au commit 6f7c52b :
+
+- 738 tests recensés.
+- 734 réussis.
+- 4 ignorés.
+- Aucun échec ni erreur.
+- Durée : 24,655 secondes.
+- Code de retour : 0.
+
+### Configuration Codex
+
+Instructions permanentes : AGENTS.md.
+
+Configuration utilisateur dans ~/.codex/config.toml :
+
+    approval_policy = "on-request"
+    sandbox_mode = "workspace-write"
+
+    [sandbox_workspace_write]
+    network_access = false
+
+Contrôles réalisés :
+
+- Lecture du projet autorisée.
+- Écriture dans le projet autorisée.
+- Écriture dans le dossier personnel hors projet bloquée.
+- Connexion au socket Docker principal bloquée.
+- Premier essai Codex en lecture seule réussi.
+- Compréhension des instructions de passation vérifiée.
+
+Ces contrôles ne constituent pas un audit exhaustif
+de l'isolation du sandbox.
+
+Les commandes Docker nécessitant une sortie du sandbox
+doivent rester soumises à une approbation ponctuelle.
+Ne pas accorder une autorisation Docker permanente.
+
+WinBoat utilise le même démon Docker et doit être préservé.
+
+### Point d'arrêt de la configuration
+
+Aucun développement fonctionnel commencé avec Codex.
+
+Le prochain chantier devra faire l'objet d'une demande
+explicite du responsable du projet.
+
+Priorité proposée : terminer les travaux ouverts du
+chantier import/export avant les nouvelles fonctionnalités.
+
+Aucune modification de Morbox.
