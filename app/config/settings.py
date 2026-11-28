@@ -98,6 +98,7 @@ MIDDLEWARE = [
     "django.middleware.common.CommonMiddleware",
     "django.middleware.csrf.CsrfViewMiddleware",
     "django.contrib.auth.middleware.AuthenticationMiddleware",
+    "planning.securite_sessions.VerificationSecuriteSessionMiddleware",
     "django.contrib.messages.middleware.MessageMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
 ]
@@ -132,6 +133,7 @@ DATABASES = {
         "NAME": "/data/db.sqlite3",
         "OPTIONS": {
             "timeout": 20,
+            "transaction_mode": "IMMEDIATE",
         },
     }
 }

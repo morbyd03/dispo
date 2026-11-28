@@ -1,5 +1,5 @@
 from django.conf import settings
-from django.contrib.auth.tokens import default_token_generator
+from .securite_jetons import generateur_jetons_compte
 from django.core.mail import send_mail
 from django.urls import reverse
 from django.utils.encoding import force_bytes
@@ -11,7 +11,7 @@ def envoyer_activation_agent(request, agent):
         raise ValueError("Le compte doit être actif et posséder un e-mail.")
 
     uid = urlsafe_base64_encode(force_bytes(agent.pk))
-    token = default_token_generator.make_token(agent)
+    token = generateur_jetons_compte.make_token(agent)
 
     chemin = reverse(
         "password_reset_confirm",
@@ -45,7 +45,7 @@ def envoyer_reinitialisation_agent(request, agent):
         )
 
     uid = urlsafe_base64_encode(force_bytes(agent.pk))
-    token = default_token_generator.make_token(agent)
+    token = generateur_jetons_compte.make_token(agent)
 
     chemin = reverse(
         "password_reset_confirm",

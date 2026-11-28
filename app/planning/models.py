@@ -289,3 +289,30 @@ class ConfirmationImport(models.Model):
 
     def __str__(self):
         return f"Import #{self.pk}"
+
+
+class SecuriteCompte(models.Model):
+    utilisateur = models.OneToOneField(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name="securite_compte",
+        verbose_name="Utilisateur",
+    )
+
+    version = models.PositiveBigIntegerField(
+        default=0,
+        editable=False,
+        verbose_name="Version de sécurité",
+    )
+
+    modifie_le = models.DateTimeField(
+        auto_now=True,
+        verbose_name="Dernière modification",
+    )
+
+    def __str__(self):
+        return f"Sécurité du compte {self.utilisateur_id}"
+
+    class Meta:
+        verbose_name = "Sécurité du compte"
+        verbose_name_plural = "Sécurité des comptes"

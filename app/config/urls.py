@@ -18,6 +18,11 @@ from django.conf import settings
 from django.contrib import admin
 from django.urls import include, path
 from django.contrib.auth import views as auth_views
+from planning.securite_jetons import generateur_jetons_compte
+from planning.securite_vues import (
+    ConnexionSecurisee,
+    ReinitialisationMotDePasseSecurisee,
+)
 
 urlpatterns = [
 
@@ -25,6 +30,7 @@ urlpatterns = [
     path(
         "mot-de-passe-oublie/",
         auth_views.PasswordResetView.as_view(
+            token_generator=generateur_jetons_compte,
             template_name="registration/password_reset_form.html",
             email_template_name="registration/password_reset_email.html",
             subject_template_name="registration/password_reset_subject.txt",
@@ -44,7 +50,8 @@ urlpatterns = [
     ),
     path(
         "reinitialisation/<uidb64>/<token>/",
-        auth_views.PasswordResetConfirmView.as_view(
+        ReinitialisationMotDePasseSecurisee.as_view(
+            token_generator=generateur_jetons_compte,
             template_name="registration/password_reset_confirm.html",
         ),
         name="password_reset_confirm",
@@ -62,7 +69,7 @@ urlpatterns = [
     path("admin/", admin.site.urls),
     path(
         "connexion/",
-        auth_views.LoginView.as_view(
+        ConnexionSecurisee.as_view(
             template_name="registration/login.html",
             redirect_authenticated_user=True,
         ),

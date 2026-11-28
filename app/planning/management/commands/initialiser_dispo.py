@@ -2,38 +2,34 @@ from django.core.management.base import BaseCommand
 from django.contrib.auth.models import Group, Permission
 from django.db import transaction
 
+from planning.autorisations import (
+    GROUPE_ADMINISTRATEURS,
+    PERMISSIONS_ADMINISTRATEURS,
+)
+
 
 class Command(BaseCommand):
     help = "Initialise les droits administrateurs de Dispo."
 
     @transaction.atomic
     def handle(self, *args, **options):
-
-        groupe, cree = Group.objects.get_or_create(
-            name="Administrateurs Dispo"
+        groupe, _ = Group.objects.get_or_create(
+            name=GROUPE_ADMINISTRATEURS
         )
 
-        permissions = {
-            "auth": [
-                "add_user",
-                "change_user",
-                "view_user",
-            ],
-            "planning": [
-                "add_competenceagent",
-                "change_competenceagent",
-                "delete_competenceagent",
-                "view_competenceagent",
-            ],
-        }
+        permissions = []
 
-        for application, codes in permissions.items():
-            for code in codes:
-                permission = Permission.objects.get(
-                    content_type__app_label=application,
-                    codename=code,
-                )
-                groupe.permissions.add(permission)
+        for identifiant in PERMISSIONS_ADMINISTRATEURS:
+            application, code = identifiant.split(".", 1)
+
+            permission = Permission.objects.get(
+                content_type__app_label=application,
+                codename=code,
+            )
+
+            permissions.append(permission)
+
+        groupe.permissions.set(permissions)
 
         self.stdout.write(
             self.style.SUCCESS(

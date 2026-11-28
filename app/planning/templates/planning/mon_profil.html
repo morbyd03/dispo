@@ -152,6 +152,33 @@
                 </div>
             </div>
 
+            {% if profil %}
+            <div>
+                <div class="profil-label">Grade</div>
+                <div class="profil-valeur">
+                    {{ profil.grade.nom|default:"Non renseigné" }}
+                </div>
+            </div>
+
+            <div>
+                <div class="profil-label">Téléphone</div>
+                <div class="profil-valeur">
+                    {{ profil.telephone|default:"Non renseigné" }}
+                </div>
+            </div>
+
+            <div>
+                <div class="profil-label">Fonctions</div>
+                <div class="profil-valeur">
+                    {% for fonction in profil.fonctions.all %}
+                        {{ fonction.nom }}{% if not fonction.active %} (archivée){% endif %}{% if not forloop.last %}, {% endif %}
+                    {% empty %}
+                        Aucune fonction attribuée
+                    {% endfor %}
+                </div>
+            </div>
+            {% endif %}
+
             <div>
                 <div class="profil-label">Rôle</div>
                 <span class="profil-role">{{ role }}</span>
@@ -161,9 +188,13 @@
     </section>
 
     <section class="profil-card">
-        <h2>Mes compétences</h2>
+        <h2>Mes qualifications</h2>
 
-        {% if competences %}
+        {% if not profil %}
+            <p class="profil-muted">
+                Ce compte ne possède pas de profil opérationnel.
+            </p>
+        {% elif competences %}
             <div class="profil-table-wrapper">
                 <table class="profil-table">
                     <thead>
@@ -171,6 +202,7 @@
                             <th>Compétence</th>
                             <th>Validation</th>
                             <th>Expiration</th>
+                            <th>État</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -182,6 +214,9 @@
                                 </td>
                                 <td>
                                     {{ attribution.date_expiration|date:"d/m/Y"|default:"—" }}
+                                </td>
+                                <td>
+                                    {{ attribution.etat_validite }}
                                 </td>
                             </tr>
                         {% endfor %}

@@ -77,7 +77,13 @@
 
 {% block content %}
 <main>
-        <h1>Gestion des agents</h1>
+        <h1>
+            {% if acces_administratif %}
+                Gestion des agents
+            {% else %}
+                Gestion des qualifications
+            {% endif %}
+        </h1>
         <p class="description">
             Liste des agents et de leurs compétences.
         </p>
@@ -85,7 +91,8 @@
         <div class="carte">
 
         <div style="margin: 20px 0;">
-            <a href="{% url 'ajouter_agent' %}"
+            {% if peut_ajouter %}
+<a href="{% url 'ajouter_agent' %}"
                style="display: inline-block;
                       background: var(--primary);
                       color: white;
@@ -95,6 +102,7 @@
                       font-weight: bold;">
                 + Ajouter un agent
             </a>
+{% endif %}
         </div>
 
 <table>
@@ -102,40 +110,61 @@
                     <tr>
                         <th>Nom</th>
                         <th>Prénom</th>
-                        <th>Identifiant</th>
+                        <th>Matricule</th>
+                        <th>Grade</th>
+                        <th>Fonctions</th>
                         <th>Compétences</th>
                         <th>Statut</th>
 <th>Actions</th>
                     </tr>
                 </thead>
                 <tbody>
-                    {% for agent in agents %}
+                    {% for profil in profils %}
                     <tr>
-                        <td>{{ agent.last_name|default:"—" }}</td>
-                        <td>{{ agent.first_name|default:"—" }}</td>
-                        <td>{{ agent.username }}</td>
+                        <td>{{ profil.utilisateur.last_name|default:"—" }}</td>
+                        <td>{{ profil.utilisateur.first_name|default:"—" }}</td>
+                        <td>{{ profil.utilisateur.username }}</td>
+                        <td>{{ profil.grade.nom|default:"—" }}</td>
                         <td>
-                            {% for attribution in agent.competences_agent.all %}
+                            {% for fonction in profil.fonctions.all %}
+                                {{ fonction.nom }}{% if not forloop.last %}, {% endif %}
+                            {% empty %}
+                                —
+                            {% endfor %}
+                        </td>
+                        <td>
+                            {% for attribution in profil.attributions_competences.all %}
                                 {{ attribution.competence.nom }}{% if not forloop.last %}, {% endif %}
                             {% empty %}
                                 —
                             {% endfor %}
                         </td>
                         <td>
-                            {% if agent.is_active %}
+                            {% if not profil.utilisateur.is_active %}
+                                <span class="inactif">Désactivé</span>
+                            {% elif profil.utilisateur.has_usable_password %}
                                 Actif
                             {% else %}
-                                <span class="inactif">Inactif</span>
+                                À activer
                             {% endif %}
+
                         </td>
 
 <td>
-    {% if agent.modification_autorisee %}
-        <a href="{% url 'modifier_agent' agent.pk %}"
+    {% if profil.qualifications_autorisees %}
+        <a href="{% url 'qualifications_agent' profil.pk %}"
+           style="font-weight: bold;">
+            Qualifications
+        </a>
+        <br>
+    {% endif %}
+
+    {% if profil.modification_autorisee %}
+        <a href="{% url 'modifier_agent' profil.pk %}"
            style="color: var(--danger); font-weight: bold;">
             Modifier
         </a>
-    {% else %}
+    {% elif not profil.qualifications_autorisees %}
         <span style="color: var(--text-muted);">Compte protégé</span>
     {% endif %}
 </td>
@@ -143,7 +172,7 @@
                     </tr>
                     {% empty %}
                     <tr>
-                        <td colspan="6" class="vide">
+                        <td colspan="8" class="vide">
                             Aucun agent enregistré.
                         </td>
                     </tr>

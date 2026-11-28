@@ -49,6 +49,16 @@ jobs:
           docker compose run --rm -T --no-deps web \
             python manage.py test planning --verbosity 2
 
+      - name: Executer les tests de concurrence
+        run: |
+          docker compose run --rm -T --no-deps web \
+            python manage.py test \
+              planning.test_concurrence_securite \
+              planning.test_concurrence_sqlite \
+              planning.test_transactions \
+              --settings=config.settings_concurrence \
+              --noinput --verbosity 2
+
       - name: Nettoyer
         if: always()
         run: docker compose down -v

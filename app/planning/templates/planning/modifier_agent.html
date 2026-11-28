@@ -198,6 +198,25 @@
         }
     }
 
+
+        .carte select {
+            width: 100%;
+            padding: 12px;
+            border: 1px solid var(--border);
+            border-radius: 7px;
+            font-size: 16px;
+        }
+
+        .carte input[type="checkbox"] {
+            width: 18px;
+            height: 18px;
+            accent-color: var(--primary);
+        }
+
+        .carte input:disabled {
+            opacity: 0.7;
+        }
+
 </style>
 <style>
     body { margin: 0; padding: 0; }
@@ -233,84 +252,16 @@
                 {% csrf_token %}
 
 
-                <h2>Informations personnelles</h2>
+                <h2>Informations personnelles et opérationnelles</h2>
 
                 {% for champ in formulaire %}
-                    {% if champ.name == "last_name" or champ.name == "first_name" or champ.name == "username" or champ.name == "email" %}
-                        {{ champ.label_tag }}
-                        {{ champ }}
+                    {{ champ.label_tag }}
+                    {{ champ }}
 
-                        {% for erreur in champ.errors %}
-                            <div class="erreur">{{ erreur }}</div>
-                        {% endfor %}
-                    {% endif %}
+                    {% for erreur in champ.errors %}
+                        <div class="erreur">{{ erreur }}</div>
+                    {% endfor %}
                 {% endfor %}
-
-                <section class="section-agent">
-                    <h2>Compétences</h2>
-
-                    <p>Cochez les compétences détenues par cet agent. Les dates de validité sont facultatives.</p>
-
-                    <div class="liste-competences">
-                        {% for ligne in formulaire.lignes_competences %}
-                            <div class="competence-item">
-                                {{ ligne.choix }}
-
-                                <div class="dates-competence">
-                                    <div>
-                                        {{ ligne.debut.label_tag }}
-                                        {{ ligne.debut }}
-
-                                        {% for erreur in ligne.debut.errors %}
-                                            <div class="erreur">{{ erreur }}</div>
-                                        {% endfor %}
-                                    </div>
-
-                                    <div>
-                                        {{ ligne.fin.label_tag }}
-                                        {{ ligne.fin }}
-
-                                        {% for erreur in ligne.fin.errors %}
-                                            <div class="erreur">{{ erreur }}</div>
-                                        {% endfor %}
-                                    </div>
-                                </div>
-                            </div>
-                        {% empty %}
-                            <p>Aucune compétence active.</p>
-                        {% endfor %}
-                    </div>
-
-                    {{ formulaire.competences.errors }}
-                </section>
-
-                <section class="section-agent">
-                    <h2>Droits et accès</h2>
-
-                    <label class="ligne-coche">
-                        {{ formulaire.is_active }}
-                        Compte actif
-                    </label>
-
-                    {{ formulaire.is_active.errors }}
-
-                    {% if request.user.is_superuser and formulaire.administrateur_dispo %}
-                        <div class="bloc-admin">
-                            <label class="ligne-coche">
-                                {{ formulaire.administrateur_dispo }}
-                                Administrateur Dispo
-                            </label>
-
-                            <p class="aide-droits">
-                                Autorise la gestion des agents
-                                et de leurs compétences,
-                                sans accès à l'administration Django.
-                            </p>
-
-                            {{ formulaire.administrateur_dispo.errors }}
-                        </div>
-                    {% endif %}
-                </section>
 
                 {% for erreur in formulaire.non_field_errors %}
                     <div class="erreur">{{ erreur }}</div>
@@ -327,6 +278,32 @@
             <hr style="margin: 30px 0; border: 0;
                        border-top: 1px solid var(--border);">
 
+            {% if perms.planning.add_competenceagent or perms.planning.change_competenceagent or perms.planning.delete_competenceagent %}
+                <h2>Qualifications opérationnelles</h2>
+
+                <p>
+                    <a href="{% url 'qualifications_agent' profil.pk %}">
+                        Gérer les qualifications de cet agent
+                    </a>
+                </p>
+
+                <hr style="margin: 30px 0; border: 0;
+                           border-top: 1px solid var(--border);">
+            {% endif %}
+
+            {% if request.user.is_superuser %}
+                <h2>Droits et autorisations</h2>
+
+                <p>
+                    <a href="{% url 'droits_agent' profil.pk %}">
+                        Gérer les droits administratifs et les délégations
+                    </a>
+                </p>
+
+                <hr style="margin: 30px 0; border: 0;
+                           border-top: 1px solid var(--border);">
+            {% endif %}
+
             <h2>Sécurité du compte</h2>
 
             <p>
@@ -337,14 +314,18 @@
             {% if agent.is_active and agent.email %}
 
                 <form method="post"
-                      action="{% url 'reinitialiser_agent' agent.pk %}"
+                      action="{% url 'reinitialiser_agent' profil.pk %}"
                       onsubmit="return confirm('Confirmer l’envoi de l’e-mail de réinitialisation ?');">
 
                     {% csrf_token %}
 
                     <button type="submit"
                             style="background: var(--primary);">
-                        Envoyer un e-mail de réinitialisation
+                        {% if agent.has_usable_password %}
+                            Envoyer un e-mail de réinitialisation
+                        {% else %}
+                            Envoyer un e-mail d'activation
+                        {% endif %}
                     </button>
                 </form>
 
@@ -357,25 +338,4 @@
 
         </div>
     </main>
-{% endblock %}
-
-
-{% block extra_scripts %}
-<script>
-    document.querySelectorAll(".competence-item").forEach(function (item) {
-        const coche = item.querySelector('input[type="checkbox"]');
-        const dates = item.querySelector(".dates-competence");
-
-        function actualiserDates() {
-            dates.hidden = !coche.checked;
-
-            dates.querySelectorAll("input").forEach(function (champ) {
-                champ.disabled = !coche.checked;
-            });
-        }
-
-        coche.addEventListener("change", actualiserDates);
-        actualiserDates();
-    });
-</script>
 {% endblock %}

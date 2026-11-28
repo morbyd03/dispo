@@ -4,6 +4,23 @@ from django.core.exceptions import PermissionDenied
 
 GROUPE_ADMINISTRATEURS = "Administrateurs Dispo"
 
+PERMISSIONS_ADMINISTRATEURS = (
+    "auth.add_user",
+    "auth.change_user",
+    "auth.view_user",
+    "planning.add_competenceagent",
+    "planning.change_competenceagent",
+    "planning.delete_competenceagent",
+    "planning.view_competenceagent",
+)
+
+PERMISSIONS_DELEGATION_QUALIFICATIONS = (
+    "planning.add_competenceagent",
+    "planning.change_competenceagent",
+    "planning.delete_competenceagent",
+)
+
+
 
 def utilisateur_actif(utilisateur):
     return (
@@ -82,3 +99,21 @@ def exiger_gestion_compte(auteur, cible):
         raise PermissionDenied(
             "Ce compte necessite un superutilisateur."
         )
+
+
+def peut_gerer_qualifications(utilisateur):
+    return (
+        utilisateur.is_authenticated
+        and utilisateur.is_active
+        and any(
+            utilisateur.has_perm(permission)
+            for permission in PERMISSIONS_DELEGATION_QUALIFICATIONS
+        )
+    )
+
+
+def peut_consulter_gestion_agents(utilisateur):
+    return (
+        est_administrateur_dispo(utilisateur)
+        and utilisateur.has_perm("auth.view_user")
+    )

@@ -25,7 +25,7 @@ class TestsValiditeCompetences(TestCase):
         )
 
         cls.attribution = CompetenceAgent.objects.create(
-            agent=cls.agent,
+            profil=cls.profil,
             competence=cls.competence,
             date_validation=date(2026, 11, 1),
             date_expiration=date(2026, 11, 22),
@@ -100,10 +100,10 @@ class TestsExpirationPendantGarde(TestCase):
             agent = User.objects.create_user(
                 username=f"test_minuit_{nom}"
             )
-            ProfilAgent.objects.create(utilisateur=agent)
+            profil = ProfilAgent.objects.create(utilisateur=agent)
 
             Disponibilite.objects.create(
-                agent=agent,
+                profil=profil,
                 debut=debut,
                 fin=fin,
             )
@@ -115,7 +115,7 @@ class TestsExpirationPendantGarde(TestCase):
                 )
 
                 CompetenceAgent.objects.create(
-                    agent=agent,
+                    profil=profil,
                     competence=competence,
                     date_validation=date(2026, 1, 1),
                     date_expiration=(

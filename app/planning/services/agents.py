@@ -15,6 +15,11 @@ from ..identites import (
     normaliser_prenom,
 )
 from ..models import Grade, ProfilAgent, FonctionAgent
+from .journal import (
+    journaliser,
+    etat_profil_agent,
+    differences_etats,
+)
 
 
 def verifier_identifiant(valeur):
@@ -159,6 +164,17 @@ def creer_agent(
 
             profil.fonctions.set(fonctions)
 
+            journaliser(
+                auteur=auteur,
+                action="agent.creer",
+                objet=profil,
+                details={
+                    "utilisateur_id": utilisateur.pk,
+                    "grade_id": profil.grade_id,
+                    "actif": utilisateur.is_active,
+                },
+            )
+
             return profil
 
     except IntegrityError as erreur:
@@ -209,6 +225,8 @@ def modifier_agent(
                 profil=profil,
             )
 
+            avant = etat_profil_agent(profil)
+
             utilisateur = profil.utilisateur
             utilisateur.last_name = nom
             utilisateur.first_name = prenom
@@ -225,6 +243,20 @@ def modifier_agent(
             )
 
             profil.fonctions.set(fonctions)
+
+            apres = etat_profil_agent(profil)
+
+            changements = differences_etats(avant, apres)
+
+            if changements:
+                journaliser(
+                    auteur=auteur,
+                    action="agent.modifier",
+                    objet=profil,
+                    details={
+                        "changements": changements,
+                    },
+                )
 
             return profil
 
@@ -298,9 +330,69 @@ def rattacher_profil_agent(
 
             profil.fonctions.set(fonctions)
 
+            journaliser(
+                auteur=auteur,
+                action="agent.rattacher",
+                objet=profil,
+                details={
+                    "utilisateur_id": utilisateur.pk,
+                    "grade_id": profil.grade_id,
+                },
+            )
+
             return profil
 
     except IntegrityError as erreur:
         raise ValidationError(
             "Impossible de rattacher le profil : conflit de donnees."
         ) from erreur
+
+
+@transaction.atomic
+def modifier_statut_agent(*, auteur_id, profil_id, actif):
+    from .journal import journaliser
+
+    auteur = charger_auteur(auteur_id)
+
+    exiger_administrateur_dispo(auteur)
+    exiger_permission(auteur, "auth.change_user")
+
+    if not isinstance(actif, bool):
+        raise ValidationError("Statut du compte invalide.")
+
+    profil_id = verifier_identifiant(profil_id)
+
+    profil = ProfilAgent.objects.select_related(
+        "utilisateur"
+    ).filter(pk=profil_id).first()
+
+    if profil is None:
+        raise ValidationError("Ce profil agent n'existe pas.")
+
+    utilisateur = profil.utilisateur
+
+    exiger_gestion_compte(auteur, utilisateur)
+
+    ancien_statut = utilisateur.is_active
+
+    if ancien_statut == actif:
+        return False
+
+    utilisateur.is_active = actif
+    utilisateur.save(update_fields=["is_active"])
+
+    from .securite import revoquer_acces_compte
+
+    revoquer_acces_compte(utilisateur.pk)
+
+    journaliser(
+        auteur=auteur,
+        action="agent.activer" if actif else "agent.desactiver",
+        objet=profil,
+        details={
+            "avant": ancien_statut,
+            "apres": actif,
+        },
+    )
+
+    return True

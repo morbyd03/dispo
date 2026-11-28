@@ -316,14 +316,18 @@
                     Mon profil
                 </a>
 
-                {% if perms.auth.view_user %}
+                {% if dispo_acces_gestion_agents or dispo_acces_qualifications %}
                     <div class="dispo-nav-label">
                         Administration
                     </div>
 
                     <a href="{% url 'liste_agents' %}"
                        class="{% if request.resolver_match.url_name == 'liste_agents' %}active{% endif %}">
+                        {% if dispo_acces_gestion_agents %}
                         Gestion des agents
+                    {% else %}
+                        Gestion des qualifications
+                    {% endif %}
                     </a>
                 {% endif %}
             </nav>

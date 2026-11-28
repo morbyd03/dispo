@@ -96,15 +96,15 @@ def couverture_inc_a_un_instant(instant):
             "L'instant doit contenir un fuseau horaire."
         )
 
-    agents_disponibles = (
+    profils_disponibles = (
         Disponibilite.objects
         .filter(debut__lte=instant, fin__gt=instant)
-        .values_list("agent_id", flat=True)
+        .values_list("profil_id", flat=True)
         .distinct()
     )
 
     profils = ProfilAgent.objects.filter(
-        utilisateur_id__in=agents_disponibles,
+        pk__in=profils_disponibles,
         utilisateur__is_active=True,
     )
 
@@ -173,7 +173,6 @@ def analyser_periode_inc(debut, fin):
                 "nombre_agents",
                 "roles_manquants",
                 "qualifications_absentes",
-                "qualifications_absentes",
             )
         ):
             periodes[-1]["fin"] = fin_intervalle
@@ -207,7 +206,6 @@ def alertes_inc(debut, fin):
                 "nombre_agents": periode["nombre_agents"],
                 "roles_manquants": periode["roles_manquants"],
                 "qualifications_absentes": periode["qualifications_absentes"],
-                "qualifications_absentes": periode["qualifications_absentes"],
             }
 
             if (
@@ -215,7 +213,6 @@ def alertes_inc(debut, fin):
                 and alertes[-1]["fin"] == alerte["debut"]
                 and alertes[-1]["nombre_agents"] == alerte["nombre_agents"]
                 and alertes[-1]["roles_manquants"] == alerte["roles_manquants"]
-                and alertes[-1]["qualifications_absentes"] == alerte["qualifications_absentes"]
                 and alertes[-1]["qualifications_absentes"] == alerte["qualifications_absentes"]
             ):
                 alertes[-1]["fin"] = alerte["fin"]

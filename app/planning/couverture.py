@@ -4,7 +4,6 @@ from .surveillance import periodes_surveillance
 from .decoupage import changements_de_jour
 from .models import Disponibilite, ProfilAgent
 from .qualifications import possede_competence
-from itertools import permutations
 
 
 ROLES_SSUAP = (
@@ -55,7 +54,7 @@ def calculer_couverture_ssuap(profils, date_reference=None):
             return {
                 "couvert": True,
                 "roles_manquants": [],
-                "qualifications_absentes":[],
+                "qualifications_absentes": [],
             }
 
     # Recherche de la meilleure affectation partielle.
@@ -119,18 +118,18 @@ def couverture_ssuap_a_un_instant(instant):
             "L'instant doit contenir un fuseau horaire."
         )
 
-    agents_disponibles = (
+    profils_disponibles = (
         Disponibilite.objects
         .filter(
             debut__lte=instant,
             fin__gt=instant,
         )
-        .values_list("agent_id", flat=True)
+        .values_list("profil_id", flat=True)
         .distinct()
     )
 
     profils = ProfilAgent.objects.filter(
-        utilisateur_id__in=agents_disponibles,
+        pk__in=profils_disponibles,
         utilisateur__is_active=True,
     )
 
@@ -191,7 +190,7 @@ def analyser_periode_ssuap(debut, fin):
             "couvert": resultat["couvert"],
             "nombre_agents": resultat["nombre_agents"],
             "roles_manquants": resultat["roles_manquants"],
-        "qualifications_absentes": resultat["qualifications_absentes"],
+            "qualifications_absentes": resultat["qualifications_absentes"],
         }
 
         # Fusionner les intervalles consécutifs
@@ -202,7 +201,6 @@ def analyser_periode_ssuap(debut, fin):
                 "couvert",
                 "nombre_agents",
                 "roles_manquants",
-                "qualifications_absentes",
                 "qualifications_absentes",
             )
         ):
@@ -240,7 +238,6 @@ def alertes_ssuap(debut, fin):
                 "nombre_agents": periode["nombre_agents"],
                 "roles_manquants": periode["roles_manquants"],
                 "qualifications_absentes": periode["qualifications_absentes"],
-                "qualifications_absentes": periode["qualifications_absentes"],
             }
 
             # Fusionner les alertes consécutives
@@ -252,7 +249,6 @@ def alertes_ssuap(debut, fin):
                     == alerte["nombre_agents"]
                 and alertes[-1]["roles_manquants"]
                     == alerte["roles_manquants"]
-                and alertes[-1]["qualifications_absentes"] == alerte["qualifications_absentes"]
                 and alertes[-1]["qualifications_absentes"] == alerte["qualifications_absentes"]
             ):
                 alertes[-1]["fin"] = alerte["fin"]

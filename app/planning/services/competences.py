@@ -338,3 +338,67 @@ def appliquer_modifications_collectives(*, operations, validateur_id):
                 raise ValidationError("Action collective inconnue.")
 
     return resultats
+
+
+def empreinte_qualifications(profil):
+    import hashlib
+    import json
+
+    catalogue = list(
+        Competence.objects.order_by("pk").values(
+            "pk",
+            "code",
+            "nom",
+            "categorie",
+            "active",
+        )
+    )
+
+    attributions = [
+        {
+            "id": attribution.pk,
+            **etat_attribution(attribution),
+        }
+        for attribution in (
+            CompetenceAgent.objects
+            .filter(profil=profil)
+            .order_by("pk")
+        )
+    ]
+
+    etat = {
+        "profil_id": profil.pk,
+        "catalogue": catalogue,
+        "attributions": attributions,
+    }
+
+    contenu = json.dumps(
+        etat,
+        sort_keys=True,
+        ensure_ascii=False,
+        separators=(",", ":"),
+    ).encode("utf-8")
+
+    return hashlib.sha256(contenu).hexdigest()
+
+
+def verifier_empreinte_qualifications(profil, empreinte):
+    from hmac import compare_digest
+
+    if (
+        not isinstance(empreinte, str)
+        or len(empreinte) != 64
+        or any(c not in "0123456789abcdef" for c in empreinte)
+    ):
+        raise ValidationError(
+            "Etat initial des qualifications invalide."
+        )
+
+    actuelle = empreinte_qualifications(profil)
+
+    if not compare_digest(actuelle, empreinte):
+        raise ValidationError(
+            "Les qualifications ou leur catalogue ont été "
+            "modifiés depuis l'ouverture du formulaire. "
+            "Rechargez la fiche avant de recommencer."
+        )

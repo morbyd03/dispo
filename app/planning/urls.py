@@ -6,6 +6,16 @@ from . import profil
 
 urlpatterns = [
     path(
+        "agents/<int:pk>/droits/",
+        gestion_agents.droits_agent,
+        name="droits_agent",
+    ),
+    path(
+        "agents/<int:pk>/qualifications/",
+        gestion_agents.qualifications_agent,
+        name="qualifications_agent",
+    ),
+    path(
         "profil/mot-de-passe/",
         profil.ChangerMotDePasse.as_view(),
         name="changer_mot_de_passe",
