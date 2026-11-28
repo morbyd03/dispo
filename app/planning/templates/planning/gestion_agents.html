@@ -103,6 +103,32 @@
                 + Ajouter un agent
             </a>
 {% endif %}
+
+            {% if request.user.is_superuser and request.user.is_active %}
+            <a href="{% url 'import_agents' %}"
+               style="display: inline-block;
+                      background: var(--primary);
+                      color: white;
+                      padding: 12px 20px;
+                      margin: 4px 0;
+                      border-radius: 7px;
+                      text-decoration: none;
+                      font-weight: bold;">
+                Importer les agents
+            </a>
+
+            <a href="{% url 'export_agents' %}"
+               style="display: inline-block;
+                      background: var(--primary);
+                      color: white;
+                      padding: 12px 20px;
+                      margin: 4px 0;
+                      border-radius: 7px;
+                      text-decoration: none;
+                      font-weight: bold;">
+                Exporter les agents
+            </a>
+            {% endif %}
         </div>
 
 <table>

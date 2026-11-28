@@ -2,9 +2,35 @@ from django.urls import path
 
 from . import views
 from . import gestion_agents
+from . import import_export_agents
 from . import profil
 
 urlpatterns = [
+    path(
+        "agents/importer/confirmer/",
+        import_export_agents.confirmer_import_agents,
+        name="confirmer_import_agents",
+    ),
+    path(
+        "agents/importer/annuler/",
+        import_export_agents.annuler_import_agents,
+        name="annuler_import_agents",
+    ),
+    path(
+        "agents/importer/",
+        import_export_agents.import_agents,
+        name="import_agents",
+    ),
+    path(
+        "agents/exporter/",
+        import_export_agents.export_agents,
+        name="export_agents",
+    ),
+    path(
+        "agents/exporter/telecharger/",
+        import_export_agents.telecharger_export_agents,
+        name="telecharger_export_agents",
+    ),
     path(
         "agents/<int:pk>/droits/",
         gestion_agents.droits_agent,

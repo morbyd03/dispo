@@ -1,0 +1,390 @@
+{% extends "planning/base.html" %}
+
+{% block title %}Prévisualisation de l'import · {{ dispo_name }}{% endblock %}
+
+{% block extra_head %}
+<style>
+        * { box-sizing: border-box; }
+        body {
+            margin: 0;
+            background: var(--bg);
+            color: var(--text);
+            font-family: system-ui, sans-serif;
+        }
+        header {
+            background: var(--surface);
+            border-bottom: 1px solid var(--border);
+            padding: 20px 30px;
+        }
+        .barre {
+            max-width: 1200px;
+            margin: auto;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 16px;
+        }
+        a { color: var(--primary-text); text-decoration: none; }
+        main {
+            max-width: 1200px;
+            margin: 35px auto;
+            padding: 0 24px;
+        }
+        h1 { margin-bottom: 8px; }
+        .description { color: var(--text-muted); }
+        .carte {
+            margin-top: 28px;
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 14px;
+            overflow-x: auto;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            text-align: left;
+        }
+        th, td {
+            padding: 15px;
+            border-bottom: 1px solid var(--border);
+        }
+        th { background: var(--surface-alt); }
+        .inactif { color: var(--danger); }
+        .vide { padding: 24px; }
+
+    .dispo-content input:not([type="checkbox"]):not([type="radio"]),
+    .dispo-content select,
+    .dispo-content textarea {
+        background: var(--input-bg);
+        color: var(--text);
+        border-color: var(--border);
+    }
+
+    .dispo-content input:focus,
+    .dispo-content select:focus,
+    .dispo-content textarea:focus {
+        outline: 2px solid var(--primary-text);
+        outline-offset: 2px;
+    }
+
+    .dispo-content input[type="checkbox"],
+    .dispo-content input[type="radio"] {
+        accent-color: var(--primary);
+    }
+
+</style>
+{% endblock %}
+
+
+{% block content %}
+<main>
+    <h1>Prévisualisation de l'import</h1>
+
+    <p class="description">
+        Vérifiez les opérations proposées avant de confirmer.
+        Aucune modification des agents n'a encore été effectuée.
+    </p>
+
+    {% if previsualisation.erreurs %}
+        <div class="carte"
+             role="alert"
+             style="padding: 20px;
+                    border-left: 4px solid var(--danger);">
+            <h2>Erreurs bloquantes</h2>
+
+            {% for erreur in previsualisation.erreurs %}
+                <p>
+                    <strong>Ligne {{ erreur.ligne }}</strong>
+                </p>
+                <ul>
+                    {% for message in erreur.messages %}
+                        <li>{{ message }}</li>
+                    {% endfor %}
+                </ul>
+            {% endfor %}
+        </div>
+    {% endif %}
+
+    {% if previsualisation.avertissements %}
+        <div class="carte" style="padding: 20px;">
+            <h2>Avertissements</h2>
+
+            <ul>
+                {% for avertissement in previsualisation.avertissements %}
+                    <li>
+                        Ligne {{ avertissement.ligne }} :
+                        {{ avertissement.message }}
+                    </li>
+                {% endfor %}
+            </ul>
+        </div>
+    {% endif %}
+
+    {% if changements_email %}
+        <div class="carte"
+             role="alert"
+             style="padding: 20px;
+                    border-left: 4px solid var(--danger);">
+            <h2>Changements d'adresse e-mail détectés</h2>
+
+            <p>
+                Cet import ne peut pas être confirmé.
+                Les modifications d'adresse e-mail doivent
+                suivre une procédure distincte.
+            </p>
+        </div>
+    {% endif %}
+
+    <div class="carte" style="padding: 20px;">
+        <h2>Bilan prévisionnel</h2>
+
+        {% if not confirmable %}
+            <p style="color: var(--danger);">
+                Import non confirmable.
+                Les chiffres ci-dessous concernent uniquement
+                les lignes ayant pu être analysées.
+            </p>
+        {% endif %}
+
+        <div style="display: grid;
+                    grid-template-columns:
+                        repeat(auto-fit, minmax(150px, 1fr));
+                    gap: 12px;">
+
+            <div>
+                <strong style="font-size: 28px;">
+                    {{ bilan.creations }}
+                </strong>
+                <p>Créations</p>
+            </div>
+
+            <div>
+                <strong style="font-size: 28px;">
+                    {{ bilan.rattachements }}
+                </strong>
+                <p>Rattachements</p>
+            </div>
+
+            <div>
+                <strong style="font-size: 28px;">
+                    {{ bilan.modifications }}
+                </strong>
+                <p>Modifications de profil</p>
+            </div>
+
+            <div>
+                <strong style="font-size: 28px;">
+                    {{ bilan.qualifications_seules }}
+                </strong>
+                <p>Qualifications uniquement</p>
+            </div>
+
+            <div>
+                <strong style="font-size: 28px;">
+                    {{ bilan.inchanges }}
+                </strong>
+                <p>Agents inchangés</p>
+            </div>
+
+            <div>
+                <strong style="font-size: 28px;">
+                    {{ bilan.qualifications_attribuees }}
+                </strong>
+                <p>Qualifications attribuées</p>
+            </div>
+
+            <div>
+                <strong style="font-size: 28px;
+                               color: var(--danger);">
+                    {{ bilan.qualifications_retirees }}
+                </strong>
+                <p>Qualifications retirées</p>
+            </div>
+        </div>
+    </div>
+
+    <h2 style="margin-top: 30px;">
+        Détail des opérations
+    </h2>
+
+    {% for ligne in lignes_presentees %}
+        <div class="carte" style="padding: 20px;">
+            <h3>
+                {{ ligne.nom }} {{ ligne.prenom }}
+            </h3>
+
+            <p class="description">
+                Matricule : {{ ligne.matricule }}
+                · Ligne {{ ligne.ligne }}
+            </p>
+
+            <p><strong>{{ ligne.action }}</strong></p>
+
+            {% if ligne.type_action == "creer" or ligne.type_action == "rattacher" %}
+                <dl>
+                    <dt>Adresse e-mail</dt>
+                    <dd>{{ ligne.email }}</dd>
+
+                    <dt>Grade</dt>
+                    <dd>{{ ligne.grade }}</dd>
+
+                    <dt>Téléphone</dt>
+                    <dd>{{ ligne.telephone }}</dd>
+
+                    <dt>Fonctions</dt>
+                    <dd>{{ ligne.fonctions }}</dd>
+                </dl>
+            {% endif %}
+
+            {% if ligne.changements %}
+                <h4>Modifications de profil</h4>
+
+                <div style="overflow-x: auto;">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Champ</th>
+                                <th>Avant</th>
+                                <th>Après</th>
+                            </tr>
+                        </thead>
+
+                        <tbody>
+                            {% for changement in ligne.changements %}
+                                <tr>
+                                    <td>{{ changement.champ }}</td>
+                                    <td>{{ changement.avant }}</td>
+                                    <td>{{ changement.apres }}</td>
+                                </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            {% endif %}
+
+            {% if ligne.operations %}
+                <h4>Qualifications</h4>
+
+                <ul>
+                    {% for operation in ligne.operations %}
+                        {% if operation.action == "attribuer" %}
+                            <li>
+                                <strong>Attribution :</strong>
+                                {{ operation.competence }}
+                            </li>
+                        {% elif operation.action == "retirer" %}
+                            <li style="color: var(--danger);">
+                                <strong>Retrait :</strong>
+                                {{ operation.competence }}
+                            </li>
+                        {% endif %}
+                    {% endfor %}
+                </ul>
+            {% endif %}
+
+            {% if ligne.changement_email %}
+                <p style="color: var(--danger);">
+                    Changement d'adresse e-mail non autorisé
+                    par import CSV.
+                </p>
+            {% endif %}
+        </div>
+    {% empty %}
+        <p>Aucune ligne exploitable.</p>
+    {% endfor %}
+
+    <div class="carte" style="padding: 20px;">
+        {% if confirmable %}
+            <h2>Confirmation</h2>
+
+            <p>
+                La prévisualisation est valable pendant
+                30 minutes à compter de sa préparation.
+            </p>
+
+            {% if retraits_necessaires %}
+                <div role="alert"
+                     style="padding: 14px;
+                            margin: 16px 0;
+                            border: 1px solid var(--danger);
+                            border-radius: 8px;">
+                    <strong>Attention : retraits de qualifications</strong>
+
+                    <p>
+                        Cet import prévoit le retrait de
+                        {{ bilan.qualifications_retirees }}
+                        qualification(s).
+                        Une confirmation spécifique est nécessaire.
+                    </p>
+                </div>
+            {% endif %}
+
+            <form method="post"
+                  action="{% url 'confirmer_import_agents' %}">
+                {% csrf_token %}
+
+                {{ formulaire_confirmation.identifiant }}
+
+                <p>
+                    <label>
+                        {{ formulaire_confirmation.confirmer_import }}
+                        {{ formulaire_confirmation.confirmer_import.label }}
+                    </label>
+                </p>
+
+                {% if retraits_necessaires %}
+                    <p>
+                        <label>
+                            {{ formulaire_confirmation.confirmer_retraits }}
+                            {{ formulaire_confirmation.confirmer_retraits.label }}
+                        </label>
+                    </p>
+                {% endif %}
+
+                <button type="submit"
+                        style="background: var(--primary);
+                               color: white;
+                               padding: 12px 20px;
+                               border: 0;
+                               border-radius: 7px;
+                               font-weight: bold;
+                               cursor: pointer;">
+                    Confirmer l'import
+                </button>
+            </form>
+
+            <form method="post"
+                  action="{% url 'annuler_import_agents' %}"
+                  style="margin-top: 16px;">
+                {% csrf_token %}
+
+                {{ formulaire_annulation.identifiant }}
+
+                <button type="submit"
+                        style="background: var(--surface);
+                               color: var(--danger);
+                               padding: 12px 20px;
+                               border: 1px solid var(--danger);
+                               border-radius: 7px;
+                               font-weight: bold;
+                               cursor: pointer;">
+                    Annuler l'import
+                </button>
+            </form>
+        {% else %}
+            <h2>Import bloqué</h2>
+
+            <p>
+                Corrigez le fichier CSV avant de lancer
+                une nouvelle analyse.
+            </p>
+        {% endif %}
+
+        <p>
+            <a href="{% url 'import_agents' %}">
+                Revenir à la page d'import
+            </a>
+        </p>
+    </div>
+</main>
+{% endblock %}

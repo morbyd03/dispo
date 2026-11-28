@@ -1,0 +1,221 @@
+{% extends "planning/base.html" %}
+
+{% block title %}Importer les agents · {{ dispo_name }}{% endblock %}
+
+{% block extra_head %}
+<style>
+        * { box-sizing: border-box; }
+        body {
+            margin: 0;
+            background: var(--bg);
+            color: var(--text);
+            font-family: system-ui, sans-serif;
+        }
+        header {
+            background: var(--surface);
+            border-bottom: 1px solid var(--border);
+            padding: 20px 30px;
+        }
+        .barre {
+            max-width: 1200px;
+            margin: auto;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 16px;
+        }
+        a { color: var(--primary-text); text-decoration: none; }
+        main {
+            max-width: 1200px;
+            margin: 35px auto;
+            padding: 0 24px;
+        }
+        h1 { margin-bottom: 8px; }
+        .description { color: var(--text-muted); }
+        .carte {
+            margin-top: 28px;
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 14px;
+            overflow-x: auto;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            text-align: left;
+        }
+        th, td {
+            padding: 15px;
+            border-bottom: 1px solid var(--border);
+        }
+        th { background: var(--surface-alt); }
+        .inactif { color: var(--danger); }
+        .vide { padding: 24px; }
+
+    .dispo-content input:not([type="checkbox"]):not([type="radio"]),
+    .dispo-content select,
+    .dispo-content textarea {
+        background: var(--input-bg);
+        color: var(--text);
+        border-color: var(--border);
+    }
+
+    .dispo-content input:focus,
+    .dispo-content select:focus,
+    .dispo-content textarea:focus {
+        outline: 2px solid var(--primary-text);
+        outline-offset: 2px;
+    }
+
+    .dispo-content input[type="checkbox"],
+    .dispo-content input[type="radio"] {
+        accent-color: var(--primary);
+    }
+
+</style>
+{% endblock %}
+
+
+{% block content %}
+<main>
+    <h1>Importer les agents</h1>
+
+    <p class="description">
+        Créer ou actualiser les profils des agents
+        à partir d'un fichier CSV.
+    </p>
+
+    {% if messages %}
+        {% for message in messages %}
+            <div role="status"
+                 style="margin: 16px 0;
+                        padding: 14px;
+                        border: 1px solid var(--border);
+                        border-radius: 8px;
+                        background: var(--surface);
+                        color: var(--text);">
+                {{ message }}
+            </div>
+        {% endfor %}
+    {% endif %}
+
+    <div class="carte" style="padding: 24px;">
+        <h2>Sélectionner un fichier</h2>
+
+        <form method="post" enctype="multipart/form-data">
+            {% csrf_token %}
+
+            {{ formulaire.non_field_errors }}
+
+            <p>
+                {{ formulaire.fichier.label_tag }}
+            </p>
+
+            <p>
+                {{ formulaire.fichier }}
+            </p>
+
+            {% if formulaire.fichier.errors %}
+                <div role="alert"
+                     style="color: var(--danger);">
+                    {{ formulaire.fichier.errors }}
+                </div>
+            {% endif %}
+
+            <p class="description">
+                {{ formulaire.fichier.help_text }}
+            </p>
+
+            <button type="submit"
+                    style="background: var(--primary);
+                           color: white;
+                           padding: 12px 20px;
+                           border: 0;
+                           border-radius: 7px;
+                           font-weight: bold;
+                           cursor: pointer;">
+                Analyser le fichier
+            </button>
+        </form>
+
+        <p class="description">
+            Aucune modification des agents ne sera
+            effectuée avant votre confirmation.
+        </p>
+    </div>
+
+    <div class="carte" style="padding: 24px;">
+        <h2>Préparer le fichier CSV</h2>
+
+        <p>
+            Utilisez un fichier encodé en UTF-8,
+            avec des colonnes séparées par des points-virgules.
+        </p>
+
+        <h3>Colonnes obligatoires</h3>
+
+        <ul>
+            <li>matricule</li>
+            <li>nom</li>
+            <li>prenom</li>
+            <li>grade</li>
+            <li>email</li>
+        </ul>
+
+        <h3>Colonnes facultatives</h3>
+
+        <ul>
+            <li>telephone</li>
+            <li>fonction</li>
+            <li>Codes des compétences du référentiel actif</li>
+        </ul>
+
+        <p>
+            Pour les compétences :
+            1 signifie attribuer,
+            0 signifie retirer,
+            une cellule vide signifie ne rien modifier.
+        </p>
+
+        <p>
+            Plusieurs fonctions peuvent être séparées
+            par le caractère |.
+        </p>
+
+        <p>
+            Vous pouvez partir d'un
+            <a href="{% url 'export_agents' %}">
+                export CSV de réimportation
+            </a>
+            pour retrouver les colonnes utilisées
+            dans votre installation.
+        </p>
+    </div>
+
+    <div class="carte" style="padding: 24px;">
+        <h2>Règles de sécurité</h2>
+
+        <ul>
+            <li>Les matricules doivent conserver leurs zéros initiaux.</li>
+            <li>Les adresses e-mail sont obligatoires et uniques.</li>
+            <li>Aucune adresse e-mail n'est générée automatiquement.</li>
+            <li>Les changements d'adresse e-mail suivent une procédure distincte.</li>
+            <li>Les agents absents du fichier ne sont pas supprimés.</li>
+            <li>Les mots de passe et les droits existants sont conservés.</li>
+            <li>Aucun courriel d'activation n'est envoyé automatiquement.</li>
+            <li>Les retraits de qualifications nécessitent une confirmation spécifique.</li>
+        </ul>
+
+        <p class="description">
+            La confirmation d'une prévisualisation est
+            possible pendant 30 minutes.
+        </p>
+    </div>
+
+    <p style="margin-top: 20px;">
+        <a href="{% url 'liste_agents' %}">
+            Retour à la gestion des agents
+        </a>
+    </p>
+</main>
+{% endblock %}

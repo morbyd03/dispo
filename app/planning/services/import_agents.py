@@ -9,10 +9,10 @@ COLONNES_OBLIGATOIRES = {
     "nom",
     "prenom",
     "grade",
+    "email",
 }
 
 COLONNES_FACULTATIVES = {
-    "email",
     "telephone",
     "fonction",
 }
@@ -106,75 +106,6 @@ def lire_csv_agents(contenu):
     }
 
 
-def normaliser_fragment_email(valeur):
-    import re
-    import unicodedata
-
-    valeur = valeur.lower()
-    valeur = valeur.replace("œ", "oe").replace("æ", "ae")
-
-    valeur = unicodedata.normalize("NFKD", valeur)
-
-    valeur = "".join(
-        caractere for caractere in valeur
-        if not unicodedata.combining(caractere)
-    )
-
-    valeur = re.sub(r"['’]", "", valeur)
-    valeur = re.sub(r"\s+", "-", valeur)
-    valeur = re.sub(r"[^a-z0-9-]", "", valeur)
-    valeur = re.sub(r"-+", "-", valeur)
-
-    return valeur.strip("-")
-
-
-def generer_email_agent(
-    *,
-    nom,
-    prenom,
-    matricule,
-    modele,
-):
-    from ..identites import (
-        normaliser_email,
-        normaliser_nom,
-        normaliser_prenom,
-        normaliser_matricule,
-    )
-    from string import Formatter
-
-    if not isinstance(modele, str) or not modele.strip():
-        raise ValidationError(
-            "Aucun modèle de génération d'e-mail configuré."
-        )
-
-    fragments = {
-        "nom": normaliser_fragment_email(normaliser_nom(nom)),
-        "prenom": normaliser_fragment_email(normaliser_prenom(prenom)),
-        "matricule": normaliser_matricule(matricule),
-    }
-
-    try:
-        for _, champ, formatage, conversion in Formatter().parse(modele):
-            if champ is not None:
-                if (
-                    champ not in fragments
-                    or formatage
-                    or conversion
-                    or not fragments[champ]
-                ):
-                    raise ValueError("Champ invalide")
-
-        email = modele.format(**fragments)
-
-    except (ValueError, KeyError) as erreur:
-        raise ValidationError(
-            "Modèle de génération d'e-mail invalide."
-        ) from erreur
-
-    return normaliser_email(email)
-
-
 def analyser_colonnes_import(colonnes):
     from ..models import Competence
 
@@ -241,7 +172,7 @@ def analyser_qualifications_import(donnees, colonnes_qualifications):
     return qualifications
 
 
-def analyser_identite_import(donnees, modele_email=None):
+def analyser_identite_import(donnees):
     from django.contrib.auth import get_user_model
 
     from ..identites import (
@@ -286,19 +217,11 @@ def analyser_identite_import(donnees, modele_email=None):
         ).first()
 
     email = donnees.get("email", "").strip()
-    email_genere = False
-
-    if not email and utilisateur is not None:
-        email = utilisateur.email
 
     if not email:
-        email = generer_email_agent(
-            nom=nom,
-            prenom=prenom,
-            matricule=matricule,
-            modele=modele_email,
+        raise ValidationError(
+            "L'adresse e-mail est obligatoire."
         )
-        email_genere = True
 
     email = normaliser_email(email)
 
@@ -320,7 +243,6 @@ def analyser_identite_import(donnees, modele_email=None):
         "nom": nom,
         "prenom": prenom,
         "email": email,
-        "email_genere": email_genere,
         "changement_email": (
             utilisateur is not None
             and utilisateur.email != email
@@ -407,7 +329,7 @@ def analyser_profil_import(donnees, identite):
     }
 
 
-def previsualiser_import_agents(contenu, modele_email=None):
+def previsualiser_import_agents(contenu):
     fichier = lire_csv_agents(contenu)
 
     colonnes_qualifications = analyser_colonnes_import(
@@ -436,7 +358,6 @@ def previsualiser_import_agents(contenu, modele_email=None):
         try:
             identite = analyser_identite_import(
                 donnees,
-                modele_email=modele_email,
             )
 
             profil = analyser_profil_import(
@@ -481,12 +402,6 @@ def previsualiser_import_agents(contenu, modele_email=None):
             resultat["lignes"].append(proposition)
 
             resultat["bilan"][identite["action"]] += 1
-
-            if identite["email_genere"]:
-                resultat["avertissements"].append({
-                    "ligne": numero,
-                    "message": "Adresse e-mail générée, à vérifier.",
-                })
 
             if identite["changement_email"]:
                 resultat["avertissements"].append({
@@ -646,7 +561,6 @@ def verifier_previsualisation_import(
     *,
     contenu,
     empreinte_attendue,
-    modele_email=None,
 ):
     from hmac import compare_digest
 
@@ -664,7 +578,6 @@ def verifier_previsualisation_import(
 
     resultat = previsualiser_import_agents(
         contenu,
-        modele_email=modele_email,
     )
 
     if not resultat["valide"]:
@@ -706,7 +619,6 @@ def preparer_confirmation_import(
     *,
     contenu,
     utilisateur_id,
-    modele_email=None,
 ):
     import hashlib
     from uuid import uuid4
@@ -718,7 +630,6 @@ def preparer_confirmation_import(
 
     resultat = previsualiser_import_agents(
         contenu,
-        modele_email=modele_email,
     )
 
     jeton = None
@@ -745,7 +656,6 @@ def verifier_confirmation_import(
     contenu,
     utilisateur_id,
     jeton,
-    modele_email=None,
 ):
     import hashlib
     from hmac import compare_digest
@@ -809,7 +719,6 @@ def verifier_confirmation_import(
     return verifier_previsualisation_import(
         contenu=contenu,
         empreinte_attendue=donnees["empreinte"],
-        modele_email=modele_email,
     )
 
 
@@ -841,7 +750,6 @@ def consommer_confirmation_import(
     contenu,
     utilisateur_id,
     jeton,
-    modele_email=None,
 ):
     from django.core import signing
     from django.db import IntegrityError, transaction
@@ -854,7 +762,6 @@ def consommer_confirmation_import(
                 contenu=contenu,
                 utilisateur_id=utilisateur_id,
                 jeton=jeton,
-                modele_email=modele_email,
             )
 
             try:
@@ -886,7 +793,6 @@ def executer_import_agents(
     contenu,
     utilisateur_id,
     jeton,
-    modele_email=None,
     confirmer_retraits=False,
 ):
     from django.db import IntegrityError, transaction
@@ -912,7 +818,6 @@ def executer_import_agents(
                 contenu=contenu,
                 utilisateur_id=auteur.pk,
                 jeton=jeton,
-                modele_email=modele_email,
             )
 
             for ligne in previsualisation["lignes"]:
@@ -942,6 +847,7 @@ def executer_import_agents(
                 "creations": 0,
                 "rattachements": 0,
                 "modifications": 0,
+                "qualifications_seules": 0,
                 "inchanges": 0,
                 "qualifications_attribuees": 0,
                 "qualifications_retirees": 0,
@@ -1040,7 +946,9 @@ def executer_import_agents(
                             pk=ligne["profil_id"]
                         )
 
-                        if not ligne["operations_qualifications"]:
+                        if ligne["operations_qualifications"]:
+                            bilan["qualifications_seules"] += 1
+                        else:
                             bilan["inchanges"] += 1
 
 

@@ -1,0 +1,188 @@
+{% extends "planning/base.html" %}
+
+{% block title %}Exporter les agents · {{ dispo_name }}{% endblock %}
+
+{% block extra_head %}
+<style>
+        * { box-sizing: border-box; }
+        body {
+            margin: 0;
+            background: var(--bg);
+            color: var(--text);
+            font-family: system-ui, sans-serif;
+        }
+        header {
+            background: var(--surface);
+            border-bottom: 1px solid var(--border);
+            padding: 20px 30px;
+        }
+        .barre {
+            max-width: 1200px;
+            margin: auto;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 16px;
+        }
+        a { color: var(--primary-text); text-decoration: none; }
+        main {
+            max-width: 1200px;
+            margin: 35px auto;
+            padding: 0 24px;
+        }
+        h1 { margin-bottom: 8px; }
+        .description { color: var(--text-muted); }
+        .carte {
+            margin-top: 28px;
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 14px;
+            overflow-x: auto;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            text-align: left;
+        }
+        th, td {
+            padding: 15px;
+            border-bottom: 1px solid var(--border);
+        }
+        th { background: var(--surface-alt); }
+        .inactif { color: var(--danger); }
+        .vide { padding: 24px; }
+
+    .dispo-content input:not([type="checkbox"]):not([type="radio"]),
+    .dispo-content select,
+    .dispo-content textarea {
+        background: var(--input-bg);
+        color: var(--text);
+        border-color: var(--border);
+    }
+
+    .dispo-content input:focus,
+    .dispo-content select:focus,
+    .dispo-content textarea:focus {
+        outline: 2px solid var(--primary-text);
+        outline-offset: 2px;
+    }
+
+    .dispo-content input[type="checkbox"],
+    .dispo-content input[type="radio"] {
+        accent-color: var(--primary);
+    }
+
+</style>
+{% endblock %}
+
+
+{% block content %}
+<main>
+    <h1>Exporter les agents</h1>
+
+    {% if messages %}
+        {% for message in messages %}
+            <div role="alert"
+                 style="margin: 16px 0;
+                        padding: 14px;
+                        border: 1px solid var(--border);
+                        border-left: 4px solid var(--danger);
+                        border-radius: 8px;
+                        background: var(--surface);
+                        color: var(--text);">
+                {{ message }}
+            </div>
+        {% endfor %}
+    {% endif %}
+
+    <p class="description">
+        Télécharger les informations des agents au format CSV.
+    </p>
+
+    <div class="carte">
+        <h2>Export pour consultation</h2>
+
+        <p>
+            Fichier destiné à la consultation dans un tableur.
+            Les valeurs susceptibles d'être interprétées comme
+            des formules sont neutralisées.
+        </p>
+
+        <p>
+            Ce format n'est pas destiné à être réimporté
+            dans Dispo.
+        </p>
+
+        <a href="{% url 'telecharger_export_agents' %}?mode=consultation"
+           style="display: inline-block;
+                  background: var(--primary);
+                  color: white;
+                  padding: 12px 20px;
+                  border-radius: 7px;
+                  text-decoration: none;
+                  font-weight: bold;">
+            Télécharger le CSV de consultation
+        </a>
+    </div>
+
+    <div class="carte" style="margin-top: 20px;">
+        <h2>Export pour réimportation</h2>
+
+        <p>
+            Fichier destiné aux échanges avec Dispo,
+            conservant les valeurs originales.
+        </p>
+
+        <p>
+            Les colonnes de compétences correspondent
+            au référentiel actif de votre installation.
+        </p>
+
+        <p style="color: var(--danger);">
+            Attention : ne pas ouvrir directement ce fichier
+            dans un tableur susceptible de transformer les
+            valeurs ou d'interpréter les cellules.
+            Les zéros initiaux des matricules doivent
+            être conservés.
+        </p>
+
+        <a href="{% url 'telecharger_export_agents' %}?mode=reimport"
+           style="display: inline-block;
+                  background: var(--primary);
+                  color: white;
+                  padding: 12px 20px;
+                  border-radius: 7px;
+                  text-decoration: none;
+                  font-weight: bold;">
+            Télécharger le CSV de réimportation
+        </a>
+    </div>
+
+    <div class="carte" style="margin-top: 20px;">
+        <h2>Confidentialité et limites</h2>
+
+        <p>
+            Ces fichiers contiennent des données personnelles.
+            Leur conservation et leur transmission doivent
+            être limitées aux personnes autorisées.
+        </p>
+
+        <p>
+            Un export CSV ne constitue pas une sauvegarde
+            complète de Dispo.
+        </p>
+
+        <p>
+            Les mots de passe, les droits administratifs,
+            les disponibilités et les dates de validité
+            des qualifications ne sont pas exportés.
+        </p>
+    </div>
+
+    <p style="margin-top: 20px;">
+        <a href="{% url 'liste_agents' %}">
+            Retour à la gestion des agents
+        </a>
+    </p>
+</main>
+{% endblock %}

@@ -1,5 +1,5 @@
 from django.core.exceptions import ValidationError
-from django.test import SimpleTestCase
+from django.test import SimpleTestCase, TestCase
 
 from .services.import_agents import lire_csv_agents
 
@@ -8,8 +8,8 @@ class LectureImportAgentsTests(SimpleTestCase):
 
     def test_csv_point_virgule(self):
         resultat = lire_csv_agents(
-            b"matricule;nom;prenom;grade\n"
-            b"000123;Dupont;Jean;SAP1\n"
+            b"matricule;nom;prenom;grade;email\n"
+            b"000123;Dupont;Jean;SAP1;jean@example.com\n"
         )
 
         donnees = resultat["lignes"][0]["donnees"]
@@ -19,16 +19,16 @@ class LectureImportAgentsTests(SimpleTestCase):
 
     def test_csv_virgule(self):
         resultat = lire_csv_agents(
-            b"matricule,nom,prenom,grade\n"
-            b"000123,Dupont,Jean,SAP1\n"
+            b"matricule,nom,prenom,grade,email\n"
+            b"000123,Dupont,Jean,SAP1,jean@example.com\n"
         )
 
         self.assertEqual(len(resultat["lignes"]), 1)
 
     def test_utf8_bom_et_accents(self):
         contenu = (
-            "matricule;nom;prenom;grade\n"
-            "000123;D'Évrard;François;CPL\n"
+            "matricule;nom;prenom;grade;email\n"
+            "000123;D'Évrard;François;CPL;agent@example.com\n"
         ).encode("utf-8-sig")
 
         resultat = lire_csv_agents(contenu)
@@ -40,22 +40,22 @@ class LectureImportAgentsTests(SimpleTestCase):
     def test_colonne_obligatoire_manquante(self):
         with self.assertRaises(ValidationError):
             lire_csv_agents(
-                b"matricule;nom;prenom\n"
-                b"000123;Dupont;Jean\n"
+                b"matricule;nom;prenom;email\n"
+                b"000123;Dupont;Jean;jean@example.com\n"
             )
 
     def test_colonnes_dupliquees(self):
         with self.assertRaises(ValidationError):
             lire_csv_agents(
-                b"matricule;nom;prenom;grade;nom\n"
-                b"000123;Dupont;Jean;SAP1;Dupont\n"
+                b"matricule;nom;prenom;grade;email;nom\n"
+                b"000123;Dupont;Jean;SAP1;jean@example.com;Dupont\n"
             )
 
     def test_ligne_incomplete(self):
         with self.assertRaises(ValidationError):
             lire_csv_agents(
-                b"matricule;nom;prenom;grade\n"
-                b"000123;Dupont;Jean\n"
+                b"matricule;nom;prenom;grade;email\n"
+                b"000123;Dupont;Jean;jean@example.com\n"
             )
 
     def test_fichier_vide(self):
@@ -65,7 +65,7 @@ class LectureImportAgentsTests(SimpleTestCase):
     def test_fichier_sans_agent(self):
         with self.assertRaises(ValidationError):
             lire_csv_agents(
-                b"matricule;nom;prenom;grade\n"
+                b"matricule;nom;prenom;grade;email\n"
             )
 
     def test_encodage_invalide(self):
@@ -74,8 +74,8 @@ class LectureImportAgentsTests(SimpleTestCase):
 
     def test_colonne_qualification_conservee(self):
         resultat = lire_csv_agents(
-            b"matricule;nom;prenom;grade;cod1\n"
-            b"000123;Dupont;Jean;SAP1;1\n"
+            b"matricule;nom;prenom;grade;email;cod1\n"
+            b"000123;Dupont;Jean;SAP1;jean@example.com;1\n"
         )
 
         self.assertEqual(
@@ -83,80 +83,12 @@ class LectureImportAgentsTests(SimpleTestCase):
             "1",
         )
 
-
-class GenerationEmailTests(SimpleTestCase):
-
-    def generer(self, **modifications):
-        from .services.import_agents import generer_email_agent
-
-        donnees = {
-            "nom": "Dupont",
-            "prenom": "Jean",
-            "matricule": "000123",
-            "modele": "{prenom}.{nom}@example.com",
-        }
-
-        donnees.update(modifications)
-
-        return generer_email_agent(**donnees)
-
-    def test_generation_standard(self):
-        self.assertEqual(
-            self.generer(),
-            "jean.dupont@example.com",
-        )
-
-    def test_accents(self):
-        self.assertEqual(
-            self.generer(prenom="François", nom="Évrard"),
-            "francois.evrard@example.com",
-        )
-
-    def test_noms_composes(self):
-        self.assertEqual(
-            self.generer(prenom="Jean-Pierre", nom="Le Gall"),
-            "jean-pierre.le-gall@example.com",
-        )
-
-    def test_apostrophe(self):
-        self.assertEqual(
-            self.generer(nom="D’Évrard"),
-            "jean.devrard@example.com",
-        )
-
-    def test_ligatures(self):
-        self.assertEqual(
-            self.generer(nom="Lœuil"),
-            "jean.loeuil@example.com",
-        )
-
-    def test_modele_personnalise(self):
-        self.assertEqual(
-            self.generer(
-                modele="{matricule}@autre.example.com"
-            ),
-            "000123@autre.example.com",
-        )
-
-    def test_modele_absent(self):
+    def test_colonne_email_manquante(self):
         with self.assertRaises(ValidationError):
-            self.generer(modele="")
-
-    def test_modele_invalide(self):
-        for modele in (
-            "{inconnu}@example.com",
-            "{nom.__class__}@example.com",
-            "{nom!r}@example.com",
-            "{nom:>20}@example.com",
-            "{prenom",
-            "{nom}",
-        ):
-            with self.subTest(modele=modele):
-                with self.assertRaises(ValidationError):
-                    self.generer(modele=modele)
-
-
-from django.test import TestCase
+            lire_csv_agents(
+                b"matricule;nom;prenom;grade\n"
+                b"000123;Dupont;Jean;SAP1\n"
+            )
 
 
 class ColonnesImportAgentsTests(TestCase):
@@ -167,7 +99,7 @@ class ColonnesImportAgentsTests(TestCase):
         self.competence = Competence.objects.get(code="cod1")
 
         self.colonnes = [
-            "matricule", "nom", "prenom", "grade"
+            "matricule", "nom", "prenom", "grade", "email"
         ]
 
     def analyser(self, colonnes):
@@ -281,6 +213,7 @@ class IdentitesImportAgentsTests(TestCase):
             "nom": "Dupont",
             "prenom": "Jean",
             "grade": "sap1",
+            "email": "jean.dupont@example.com",
         }
 
     def analyser(self):
@@ -288,7 +221,6 @@ class IdentitesImportAgentsTests(TestCase):
 
         return analyser_identite_import(
             self.donnees,
-            modele_email="{prenom}.{nom}@example.com",
         )
 
     def test_nouvel_agent(self):
@@ -301,7 +233,6 @@ class IdentitesImportAgentsTests(TestCase):
             resultat["email"],
             "jean.dupont@example.com",
         )
-        self.assertTrue(resultat["email_genere"])
         self.assertFalse(self.User.objects.exists())
 
     def test_email_explicite(self):
@@ -313,7 +244,6 @@ class IdentitesImportAgentsTests(TestCase):
             resultat["email"],
             "autre@example.com",
         )
-        self.assertFalse(resultat["email_genere"])
 
     def test_grade_inconnu(self):
         self.donnees["grade"] = "INCONNU"
@@ -339,6 +269,7 @@ class IdentitesImportAgentsTests(TestCase):
             self.analyser()
 
     def test_compte_historique(self):
+        self.donnees["email"] = "historique@example.com"
         utilisateur = self.User.objects.create(
             username="000123",
             email="historique@example.com",
@@ -355,9 +286,9 @@ class IdentitesImportAgentsTests(TestCase):
             resultat["email"],
             "historique@example.com",
         )
-        self.assertFalse(resultat["email_genere"])
 
     def test_agent_existant(self):
+        self.donnees["email"] = "historique@example.com"
         from .models import ProfilAgent
 
         utilisateur = self.User.objects.create(
@@ -401,6 +332,49 @@ class IdentitesImportAgentsTests(TestCase):
 
         with self.assertRaises(ValidationError):
             self.analyser()
+
+    def test_email_absent(self):
+        del self.donnees["email"]
+
+        with self.assertRaises(ValidationError):
+            self.analyser()
+
+    def test_email_vide(self):
+        self.donnees["email"] = ""
+
+        with self.assertRaises(ValidationError):
+            self.analyser()
+
+    def test_email_invalide(self):
+        self.donnees["email"] = "adresse-invalide"
+
+        with self.assertRaises(ValidationError):
+            self.analyser()
+
+    def test_email_vide_compte_existant(self):
+        self.User.objects.create(
+            username="000123",
+            email="historique@example.com",
+        )
+
+        self.donnees["email"] = ""
+
+        with self.assertRaises(ValidationError):
+            self.analyser()
+
+    def test_domaines_email_independants(self):
+        for email in (
+            "agent@example.com",
+            "agent@example.org",
+            "agent@example.net",
+        ):
+            with self.subTest(email=email):
+                self.donnees["email"] = email
+
+                self.assertEqual(
+                    self.analyser()["email"],
+                    email,
+                )
 
 
 class ProfilsImportAgentsTests(TestCase):
@@ -570,24 +544,23 @@ class PrevisualisationImportAgentsTests(TestCase):
 
         return previsualiser_import_agents(
             contenu,
-            modele_email="{prenom}.{nom}@example.com",
         )
 
     def test_import_valide(self):
         resultat = self.previsualiser([
-            "000123;Dupont;Jean;SAP1;;1",
-            "000124;Martin;Paul;CPL;;0",
+            "000123;Dupont;Jean;SAP1;jean.dupont@example.com;1",
+            "000124;Martin;Paul;CPL;paul.martin@example.com;0",
         ])
 
         self.assertTrue(resultat["valide"])
         self.assertEqual(resultat["bilan"]["creer"], 2)
         self.assertEqual(len(resultat["lignes"]), 2)
-        self.assertEqual(len(resultat["avertissements"]), 2)
+        self.assertEqual(len(resultat["avertissements"]), 0)
 
     def test_matricule_duplique(self):
         resultat = self.previsualiser([
-            "000123;Dupont;Jean;SAP1;;1",
-            "000123;Martin;Paul;CPL;;0",
+            "000123;Dupont;Jean;SAP1;jean.dupont@example.com;1",
+            "000123;Martin;Paul;CPL;paul.martin@example.com;0",
         ])
 
         self.assertFalse(resultat["valide"])
@@ -603,19 +576,28 @@ class PrevisualisationImportAgentsTests(TestCase):
         self.assertFalse(resultat["valide"])
         self.assertEqual(len(resultat["erreurs"]), 1)
 
-    def test_collision_emails_generes(self):
+    def test_homonymes_emails_distincts(self):
+        resultat = self.previsualiser([
+            "000123;Dupont;Jean;SAP1;jean1@example.com;1",
+            "000124;Dupont;Jean;CPL;jean2@example.org;0",
+        ])
+
+        self.assertTrue(resultat["valide"])
+        self.assertEqual(len(resultat["lignes"]), 2)
+
+    def test_email_vide_bloquant(self):
         resultat = self.previsualiser([
             "000123;Dupont;Jean;SAP1;;1",
-            "000124;Dupont;Jean;CPL;;0",
         ])
 
         self.assertFalse(resultat["valide"])
+        self.assertEqual(len(resultat["erreurs"]), 1)
 
     def test_collecte_erreurs_multiples(self):
         resultat = self.previsualiser([
-            "000123;Dupont;Jean;INCONNU;;1",
-            "000124;Martin;Paul;CPL;;oui",
-            "000125;Durand;Marc;SAP1;;1",
+            "000123;Dupont;Jean;INCONNU;jean.dupont@example.com;1",
+            "000124;Martin;Paul;CPL;paul.martin@example.com;oui",
+            "000125;Durand;Marc;SAP1;marc.durand@example.com;1",
         ])
 
         self.assertFalse(resultat["valide"])
@@ -628,7 +610,7 @@ class PrevisualisationImportAgentsTests(TestCase):
         competence = Competence.objects.get(code="cod1")
 
         resultat = self.previsualiser([
-            "000123;Dupont;Jean;SAP1;;1",
+            "000123;Dupont;Jean;SAP1;jean.dupont@example.com;1",
         ])
 
         self.assertEqual(
@@ -645,8 +627,8 @@ class PrevisualisationImportAgentsTests(TestCase):
         )
 
         resultat = self.previsualiser([
-            "000123;Dupont;Jean;SAP1;;1",
-            "000124;Martin;Paul;CPL;;0",
+            "000123;Dupont;Jean;SAP1;jean.dupont@example.com;1",
+            "000124;Martin;Paul;CPL;paul.martin@example.com;0",
         ])
 
         self.assertTrue(resultat["valide"])
@@ -676,9 +658,9 @@ class PrevisualisationImportAgentsTests(TestCase):
         )
 
         resultat = self.previsualiser([
-            "000123;Dupont;Jean;SAP1;;1",
-            "000124;Martin;Paul;CPL;;0",
-            "000125;Durand;Marc;SAP1;;",
+            "000123;Dupont;Jean;SAP1;jean.dupont@example.com;1",
+            "000124;Martin;Paul;CPL;paul.martin@example.com;0",
+            "000125;Durand;Marc;SAP1;marc.durand@example.com;",
         ])
 
         self.assertTrue(resultat["valide"])
@@ -747,8 +729,8 @@ class ChangementsImportAgentsTests(TestCase):
         )
 
         contenu = (
-            "matricule;nom;prenom;grade;telephone;cod1\n"
-            f"000123;Dupont;Jean;{grade};{telephone};{qualification}\n"
+            "matricule;nom;prenom;grade;email;telephone;cod1\n"
+            f"000123;Dupont;Jean;{grade};jean.dupont@example.com;{telephone};{qualification}\n"
         ).encode("utf-8")
 
         resultat = previsualiser_import_agents(contenu)
@@ -1148,8 +1130,8 @@ class ConcurrenceImportAgentsTests(TestCase):
         )
 
         self.contenu = (
-            b"matricule;nom;prenom;grade;cod1\n"
-            b"000123;Dupont;Jean;SAP1;0\n"
+            b"matricule;nom;prenom;grade;email;cod1\n"
+            b"000123;Dupont;Jean;SAP1;jean@example.com;0\n"
         )
 
         preparation = preparer_confirmation_import(
@@ -1638,6 +1620,40 @@ class ModificationImportAgentsTests(TestCase):
             1,
         )
 
+        self.assertEqual(bilan["qualifications_seules"], 0)
+        self.assertEqual(bilan["modifications"], 1)
+        self.assertEqual(bilan["inchanges"], 0)
+
+        self.assertTrue(
+            CompetenceAgent.objects.filter(
+                profil=self.profil,
+                competence__code="cod1",
+            ).exists()
+        )
+
+    def test_modification_qualifications_uniquement(self):
+        from .models import CompetenceAgent
+
+        self.contenu = (
+            b"matricule;nom;prenom;grade;email;telephone;cod1\n"
+            b"000123;Dupont;Jean;SAP1;jean@example.com;0600000000;1\n"
+        )
+
+        bilan = self.executer()
+
+        self.assertEqual(bilan["creations"], 0)
+        self.assertEqual(bilan["rattachements"], 0)
+        self.assertEqual(bilan["modifications"], 0)
+        self.assertEqual(bilan["qualifications_seules"], 1)
+        self.assertEqual(bilan["inchanges"], 0)
+        self.assertEqual(bilan["qualifications_attribuees"], 1)
+        self.assertEqual(bilan["qualifications_retirees"], 0)
+
+        self.profil.refresh_from_db()
+
+        self.assertEqual(self.profil.grade.code, "SAP1")
+        self.assertEqual(self.profil.telephone, "0600000000")
+
         self.assertTrue(
             CompetenceAgent.objects.filter(
                 profil=self.profil,
@@ -1657,6 +1673,7 @@ class ModificationImportAgentsTests(TestCase):
 
         self.assertEqual(bilan["modifications"], 0)
         self.assertEqual(bilan["inchanges"], 1)
+        self.assertEqual(bilan["qualifications_seules"], 0)
         self.assertFalse(JournalAction.objects.exists())
 
     def test_changement_email_refuse(self):
@@ -1905,8 +1922,8 @@ class RetraitsImportAgentsTests(TestCase):
         )
 
         self.contenu = (
-            b"matricule;nom;prenom;grade;cod1\n"
-            b"000123;Dupont;Jean;SAP1;0\n"
+            b"matricule;nom;prenom;grade;email;cod1\n"
+            b"000123;Dupont;Jean;SAP1;jean@example.com;0\n"
         )
 
     def preparer(self):

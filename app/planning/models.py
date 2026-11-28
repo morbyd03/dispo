@@ -316,3 +316,44 @@ class SecuriteCompte(models.Model):
     class Meta:
         verbose_name = "Sécurité du compte"
         verbose_name_plural = "Sécurité des comptes"
+
+
+class ImportAgentTemporaire(models.Model):
+    utilisateur = models.OneToOneField(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name="import_agent_temporaire",
+    )
+
+    identifiant = models.CharField(
+        max_length=32,
+        unique=True,
+        editable=False,
+    )
+
+    contenu = models.BinaryField(
+        editable=False,
+    )
+
+    jeton = models.TextField(
+        editable=False,
+    )
+
+    version_securite = models.PositiveBigIntegerField(
+        editable=False,
+    )
+
+    cree_le = models.DateTimeField(
+        auto_now_add=True,
+    )
+
+    expire_le = models.DateTimeField(
+        db_index=True,
+    )
+
+    def __str__(self):
+        return f"Import temporaire {self.identifiant}"
+
+    class Meta:
+        verbose_name = "Import temporaire des agents"
+        verbose_name_plural = "Imports temporaires des agents"

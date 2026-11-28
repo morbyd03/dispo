@@ -23,12 +23,12 @@ indépendamment des futures interfaces web et API.
 | nom | Nom de famille |
 | prenom | Prénom |
 | grade | Code du grade dans le référentiel |
+| email | Adresse électronique |
 
 ### Colonnes facultatives
 
 | Colonne | Description |
 | --- | --- |
-| email | Adresse électronique |
 | telephone | Numéro de téléphone |
 | fonction | Fonctions séparées par une barre verticale |
 
@@ -75,16 +75,20 @@ une régularisation préalable.
 
 ## Adresses électroniques
 
-Une adresse manquante peut être générée à partir
-d'un modèle configurable.
+Chaque agent doit disposer d'une adresse électronique
+explicitement renseignée dans le fichier CSV.
 
-Exemple fictif :
+Dispo ne génère aucune adresse automatiquement
+et n'impose aucun domaine de messagerie.
 
-    {prenom}.{nom}@example.org
+Les adresses personnelles et professionnelles
+sont acceptées sous réserve de validité et d'unicité.
 
-Les adresses générées sont présentées avant confirmation.
+Une adresse absente, vide, invalide ou en doublon
+bloque l'import.
 
-Les collisions et les adresses invalides bloquent l'import.
+Cette obligation concerne également les agents
+déjà présents dans Dispo.
 
 Le changement d'une adresse électronique existante
 nécessite une procédure distincte.
